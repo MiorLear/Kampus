@@ -12,6 +12,8 @@ import { Mail, Lock, User, CheckCircle, Loader2 } from 'lucide-react';
 import { signUpEmail, signInEmail, signInGoogle } from '../../services/auth';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
+import { FirebaseChecker } from '../FirebaseChecker';
+import { TestRegistration } from '../TestRegistration';
 import { 
   loginSchema, 
   registerSchema, 
@@ -81,15 +83,26 @@ export function AuthPage({ authState, onAuthStateChange }: AuthPageProps) {
   };
 
   const handleRegister = async (data: RegisterFormData) => {
+    console.log('Registration form submitted:', data);
     setLoading(true);
     setError('');
+    
     try {
+      console.log('Calling signUpEmail...');
       await signUpEmail(data.email, data.password, data.role || 'student', data.name);
+      console.log('Registration successful, showing email verification');
       setResetEmail(data.email);
       onAuthStateChange('email-verification');
     } catch (err: any) {
-      console.error('Registration error:', err);
-      setError(getFirebaseErrorMessage(err.code));
+      console.error('Registration failed:', err);
+      
+      // Show more detailed error message
+      let errorMessage = getFirebaseErrorMessage(err.code || err.message);
+      if (err.message?.includes('Firebase is not properly configured')) {
+        errorMessage = 'Firebase is not configured. Please set up your Firebase credentials in the .env file.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -490,6 +503,14 @@ export function AuthPage({ authState, onAuthStateChange }: AuthPageProps) {
             </div>
           </CardContent>
         </Card>
+
+        {/* Firebase Configuration Checker - only show if there are config issues */}
+        <FirebaseChecker />
+
+        {/* Test Registration - only in development */}
+        {import.meta.env.DEV && (
+          <TestRegistration />
+        )}
       </div>
     </div>
   );
