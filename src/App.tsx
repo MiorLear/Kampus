@@ -1,71 +1,67 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
 import { StudentDashboard } from './components/student/StudentDashboard';
 import { TeacherDashboard } from './components/teacher/TeacherDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { Navigation } from './components/Navigation';
+import { logout } from './services/auth';
+import type { Role } from './lib/types';
 
-type UserRole = 'student' | 'teacher' | 'admin';
-type AuthState = 'login' | 'register' | 'forgot-password' | 'email-verification';
+type AuthState = 'login' | 'register' | 'forgot-password' | 'email-verification' | 'password-reset-sent';
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  role: Role;
   avatar?: string;
 }
 
-export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [authState, setAuthState] = useState<AuthState>('login');
+function AppContent() {
+  const { user, role, loading } = useAuth();
+  const [authState, setAuthState] = React.useState<AuthState>('login');
 
-  // Mock authentication - replace with real auth later
-  const handleLogin = (email: string, password: string, role?: UserRole) => {
-    // Mock user creation
-    const user: User = {
-      id: '1',
-      name: email.split('@')[0],
-      email,
-      role: role || 'student',
-    };
-    setCurrentUser(user);
-    setIsAuthenticated(true);
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setAuthState('login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
 
-  const handleRegister = (name: string, email: string, password: string) => {
-    const user: User = {
-      id: '1',
-      name,
-      email,
-      role: 'student',
-    };
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    setAuthState('login');
-  };
-
-  if (!isAuthenticated) {
+  if (!user) {
     return (
       <AuthPage
         authState={authState}
         onAuthStateChange={setAuthState}
-        onLogin={handleLogin}
-        onRegister={handleRegister}
       />
     );
   }
 
-  const renderDashboard = () => {
-    if (!currentUser) return null;
+  // Create user object for dashboard components
+  const currentUser: User = {
+    id: user.uid,
+    name: user.displayName || user.email?.split('@')[0] || 'User',
+    email: user.email || '',
+    role: role || 'student',
+    avatar: user.photoURL || undefined,
+  };
 
-    switch (currentUser.role) {
+  const renderDashboard = () => {
+    switch (role) {
       case 'student':
         return <StudentDashboard user={currentUser} />;
       case 'teacher':
@@ -84,5 +80,13 @@ export default function App() {
         {renderDashboard()}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
