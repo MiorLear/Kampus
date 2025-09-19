@@ -1,54 +1,77 @@
-import { auth, db, googleProvider } from "@/lib/firebase";
+// src/services/auth.ts
 import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
-  User,
-  updateProfile
-} from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import type { Role, UserDoc } from "@/lib/types";
+  onAuthStateChanged,
+  type User,
+} from 'firebase/auth';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
-export async function signUpEmail(
-  email: string,
-  password: string,
-  role: Role = "student",
-  displayName?: string
-) {
-  const cred = await createUserWithEmailAndPassword(auth, email, password);
-  if (displayName) await updateProfile(cred.user, { displayName });
-  await createUserDoc(cred.user, role);
-  return cred.user;
-}
+// 👇 Importa SIEMPRE desde firebase (app, db y provider)
+import { auth, db, googleProvider } from '../firebase';
 
-export async function signInEmail(email: string, password: string) {
-  const cred = await signInWithEmailAndPassword(auth, email, password);
-  return cred.user;
-}
+// Utilidad: elimina undefined antes de guardar
+const clean = <T extends Record<string, any>>(o: T) =>
+  JSON.parse(JSON.stringify(o)) as T;
 
-export async function signInGoogle(roleDefault: Role = "student") {
-  const cred = await signInWithPopup(auth, googleProvider);
-  // crea doc si no existe
-  const ref = doc(db, "users", cred.user.uid);
+type ProviderKind = 'google' | 'password';
+
+async function upsertUserDoc(u: User, provider: ProviderKind) {
+  const ref = doc(db, 'users', u.uid);
   const snap = await getDoc(ref);
-  if (!snap.exists()) await createUserDoc(cred.user, roleDefault);
-  return cred.user;
+
+  const base = clean({
+    email: u.email ?? null,
+    displayName: u.displayName ?? null,
+    photoURL: u.photoURL ?? null,
+    provider,
+    updatedAt: serverTimestamp(),
+  });
+
+  await setDoc(
+    ref,
+    snap.exists()
+      ? base
+      : {
+          ...base,
+          createdAt: serverTimestamp(), // solo si no existía
+        },
+    { merge: true }
+  );
 }
 
-export function logout() {
-  return signOut(auth);
+/** Login con Google (popup) + upsert del doc del usuario */
+export async function loginWithGoogle(): Promise<User> {
+  const { user } = await signInWithPopup(auth, googleProvider);
+  await upsertUserDoc(user, 'google');
+  return user;
 }
 
-async function createUserDoc(user: User, role: Role) {
-  const ref = doc(db, "users", user.uid);
-  const userDoc: UserDoc = {
-    uid: user.uid,
-    email: user.email ?? "",
-    displayName: user.displayName ?? undefined,
-    photoURL: user.photoURL ?? undefined,
-    role,
-    createdAt: Date.now(),
-  };
-  await setDoc(ref, { ...userDoc, createdAt: serverTimestamp() }, { merge: true });
+/** Login con email/password */
+export async function loginWithEmailPassword(email: string, password: string) {
+  const { user } = await signInWithEmailAndPassword(auth, email, password);
+  await upsertUserDoc(user, 'password'); // asegura doc
+  return user;
+}
+
+/** Registro con email/password */
+export async function registerWithEmailPassword(
+  email: string,
+  password: string
+) {
+  const { user } = await createUserWithEmailAndPassword(auth, email, password);
+  await upsertUserDoc(user, 'password');
+  return user;
+}
+
+/** Cerrar sesión */
+export async function logout() {
+  await signOut(auth);
+}
+
+/** Listener del estado de auth */
+export function onAuthChange(cb: (user: User | null) => void) {
+  return onAuthStateChanged(auth, cb);
 }

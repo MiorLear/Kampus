@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase";
+import { db } from "../firebase";
 import {
   addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where
 } from "firebase/firestore";

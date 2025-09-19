@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"],
+    "baseUrl": "./src",  // This makes sure that TypeScript considers `src` as the base folder for your imports.
+    "paths": {
+      "@/*": ["./*"]  // This tells TypeScript that `@/` maps to the `src/` folder
+    }
+  },
+  "include": [
+    "vite.config.ts",
+    "src/**/*"
+  ]
+}

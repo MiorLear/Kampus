@@ -1,30 +1,85 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import type { Role, UserDoc } from "@/lib/types";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
+import { auth } from "../firebase";
+import type { Role } from "../routes/ProtectedRoute";
 
-type AuthState = {
+export interface User {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+  role: Role;
+}
+
+interface AuthContextValue {
   user: User | null;
-  role: Role | null;
   loading: boolean;
-};
+  signIn: (u: User) => void;
+  signOut: () => void;
+}
 
-const Ctx = createContext<AuthState>({ user: null, role: null, loading: true });
-export function useAuth() { return useContext(Ctx); }
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>({ user: null, role: null, loading: true });
+export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Add timeout to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.warn("Auth loading timeout, setting loading to false");
+        setLoading(false);
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [loading]);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (!u) { setState({ user: null, role: null, loading: false }); return; }
-      const snap = await getDoc(doc(db, "users", u.uid));
-      const role = (snap.data()?.role ?? "student") as Role;
-      setState({ user: u, role, loading: false });
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setLoading(true);
+      try {
+        if (firebaseUser) {
+          // For now, use default role to avoid Firestore dependency
+          // TODO: Implement proper role fetching from Firestore when connection is stable
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            role: "student" as Role, // Default role for now
+          });
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Error in auth state change:", error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     });
-    return () => unsub();
+
+    return () => unsubscribe();
   }, []);
 
-  return <Ctx.Provider value={state}>{children}</Ctx.Provider>;
+  const signIn = (u: User) => setUser(u);
+  const signOut = async () => {
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth debe usarse dentro de un <AuthProvider>");
+  return ctx;
 }

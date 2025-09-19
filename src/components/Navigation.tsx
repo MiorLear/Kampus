@@ -10,6 +10,7 @@ import {
 } from './ui/dropdown-menu';
 import { Logo } from './Logo';
 import { LogOut, Settings, User } from 'lucide-react';
+import { logout } from '../services/auth';
 
 interface User {
   id: string;
@@ -21,11 +22,20 @@ interface User {
 
 interface NavigationProps {
   user: User | null;
-  onLogout: () => void;
+  onLogout?: () => void;
 }
 
 export function Navigation({ user, onLogout }: NavigationProps) {
   if (!user) return null;
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      if (onLogout) onLogout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -79,7 +89,7 @@ export function Navigation({ user, onLogout }: NavigationProps) {
                 <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onLogout}>
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from '../ui/alert';
 import { Logo } from '../Logo';
 import { Mail, Lock, User, CheckCircle } from 'lucide-react';
-import exampleImage from 'figma:asset/85acd1b6c67aa7a2de14b5c92a41f1a159429f25.png';
 
 type AuthState = 'login' | 'register' | 'forgot-password' | 'email-verification';
 type UserRole = 'student' | 'teacher' | 'admin';
@@ -98,7 +97,6 @@ export function AuthPage({ authState, onAuthStateChange, onLogin, onRegister }: 
         {/* Left side - Branding */}
         <div className="text-center md:text-left">
           <div className="flex justify-center md:justify-start mb-6">
-            <img src={exampleImage} alt="Key Institute" className="h-20 w-20" />
           </div>
           <Logo size="lg" className="mb-4 justify-center md:justify-start flex" />
           <h1 className="mb-2 text-foreground">Learning Management System</h1>

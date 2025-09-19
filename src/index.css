@@ -246,8 +246,7 @@
   }
 
   img, svg, video, canvas, audio, iframe, embed, object {
-    vertical-align: middle;
-    display: block;
+    display: block;      
   }
 
   img, video {
@@ -771,7 +770,8 @@
   }
 
   .line-clamp-1 {
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: 1;   /* soporte actual en navegadores basados en WebKit */
+    line-clamp: 1;           /* estándar futuro */
     -webkit-box-orient: vertical;
     display: -webkit-box;
     overflow: hidden;
@@ -3434,8 +3434,18 @@
     outline-style: none;
   }
 
-  :is(.\*\:data-\[slot\=select-value\]\:line-clamp-1 > *)[data-slot="select-value"] {
-    -webkit-line-clamp: 1;
+  .line-clamp-1 {
+    -webkit-line-clamp: 1;   /* soporte actual */
+    line-clamp: 1;           /* estándar futuro */
+    -webkit-box-orient: vertical;
+    display: -webkit-box;
+    overflow: hidden;
+  }
+  
+  /* Bloque con selector específico */
+  :is(.\[data-slot\=select-value\]\.line-clamp-1 > *)[data-slot="select-value"] {
+    -webkit-line-clamp: 1;   /* soporte actual */
+    line-clamp: 1;           /* estándar futuro */
     -webkit-box-orient: vertical;
     display: -webkit-box;
     overflow: hidden;

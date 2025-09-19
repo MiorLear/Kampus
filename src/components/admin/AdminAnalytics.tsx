@@ -167,7 +167,7 @@ export function AdminAnalytics() {
             <CardTitle>User Growth Over Time</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={300} children={
               <AreaChart data={mockAnalyticsData.userGrowth}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
@@ -177,7 +177,7 @@ export function AdminAnalytics() {
                 <Area type="monotone" dataKey="teachers" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.6} />
                 <Area type="monotone" dataKey="admins" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} />
               </AreaChart>
-            </ResponsiveContainer>
+            } />
           </CardContent>
         </Card>
 
@@ -186,7 +186,7 @@ export function AdminAnalytics() {
             <CardTitle>Daily Platform Usage</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={300} children={
               <LineChart data={mockAnalyticsData.platformUsage}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="day" />
@@ -195,7 +195,7 @@ export function AdminAnalytics() {
                 <Line type="monotone" dataKey="activeUsers" stroke="#3b82f6" strokeWidth={2} name="Active Users" />
                 <Line type="monotone" dataKey="courseViews" stroke="#22c55e" strokeWidth={2} name="Course Views" />
               </LineChart>
-            </ResponsiveContainer>
+            } />
           </CardContent>
         </Card>
       </div>
@@ -207,7 +207,7 @@ export function AdminAnalytics() {
             <CardTitle>Course Performance</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={300} children={
               <BarChart data={mockAnalyticsData.coursePerformance}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
@@ -216,7 +216,7 @@ export function AdminAnalytics() {
                 <Bar dataKey="enrollments" fill="#3b82f6" name="Enrollments" />
                 <Bar dataKey="completions" fill="#22c55e" name="Completions" />
               </BarChart>
-            </ResponsiveContainer>
+            } />
           </CardContent>
         </Card>
 
@@ -225,7 +225,7 @@ export function AdminAnalytics() {
             <CardTitle>Completion Rate Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={300} children={
               <PieChart>
                 <Pie
                   data={mockAnalyticsData.completionRates}
@@ -241,7 +241,7 @@ export function AdminAnalytics() {
                 </Pie>
                 <Tooltip />
               </PieChart>
-            </ResponsiveContainer>
+            } />
           </CardContent>
         </Card>
       </div>
@@ -252,7 +252,7 @@ export function AdminAnalytics() {
           <CardTitle>Enrollment Trends</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} children={
             <BarChart data={mockAnalyticsData.enrollmentTrends}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="week" />
@@ -262,7 +262,7 @@ export function AdminAnalytics() {
               <Bar dataKey="approvals" fill="#22c55e" name="Approvals" />
               <Bar dataKey="rejections" fill="#ef4444" name="Rejections" />
             </BarChart>
-          </ResponsiveContainer>
+          } />
         </CardContent>
       </Card>
 
