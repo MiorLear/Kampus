@@ -22,6 +22,11 @@ import {
 import { Input } from '../ui/input';
 import { CourseViewer } from './CourseViewer';
 import { EvaluationPlayer } from './EvaluationPlayer';
+import { CourseCatalog } from './CourseCatalog';
+import { CourseDetail } from './CourseDetail';
+import { MyCourses } from './MyCourses';
+import { MyGrades } from './MyGrades';
+import { ProfilePage } from './ProfilePage';
 
 interface User {
   id: string;
@@ -114,14 +119,20 @@ const mockEvaluations: Evaluation[] = [
 
 interface StudentDashboardProps {
   user: User;
+  onUpdateProfile?: (updates: any) => Promise<void>;
+  onUpdatePassword?: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
-export function StudentDashboard({ user }: StudentDashboardProps) {
+export function StudentDashboard({ user, onUpdateProfile, onUpdatePassword }: StudentDashboardProps) {
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedEvaluation, setSelectedEvaluation] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<Course | null>(null);
+  const [evaluations, setEvaluations] = useState<Evaluation[]>(mockEvaluations);
+  const [courses, setCourses] = useState<Course[]>(mockCourses);
 
+  // Handle different views
   if (activeView === 'course-viewer' && selectedCourse) {
     return (
       <CourseViewer 
@@ -130,12 +141,45 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
           setActiveView('dashboard');
           setSelectedCourse(null);
         }}
+        onProgressUpdate={async (courseId, progress) => {
+          // Actualizar el progreso del curso en el estado
+          setCourses(prev => prev.map(course => 
+            course.id === courseId 
+              ? { 
+                  ...course, 
+                  progress: progress,
+                  status: progress === 100 ? 'completed' as const : course.status
+                }
+              : course
+          ));
+          console.log('Progress updated:', { courseId, progress });
+        }}
+        isArchived={selectedCourse.status === 'archived'}
+      />
+    );
+  }
+
+  if (activeView === 'course-detail' && selectedCourseForDetail) {
+    return (
+      <CourseDetail
+        course={selectedCourseForDetail}
+        onBack={() => {
+          setActiveView('catalog');
+          setSelectedCourseForDetail(null);
+        }}
+        onEnroll={(courseId) => {
+          console.log('Enrollment requested for course:', courseId);
+          setActiveView('catalog');
+          setSelectedCourseForDetail(null);
+        }}
+        isEnrolled={mockCourses.some(c => c.id === selectedCourseForDetail.id && c.status !== 'available')}
+        enrollmentStatus="pending"
       />
     );
   }
 
   if (activeView === 'evaluation' && selectedEvaluation) {
-    const evaluation = mockEvaluations.find(e => e.id === selectedEvaluation);
+    const evaluation = evaluations.find(e => e.id === selectedEvaluation);
     if (evaluation) {
       return (
         <EvaluationPlayer
@@ -144,22 +188,63 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
             setActiveView('dashboard');
             setSelectedEvaluation(null);
           }}
-          onSubmit={(answers) => {
+          onSubmit={async (answers) => {
             console.log('Submitted answers:', answers);
+            // Actualizar el estado de la evaluación
+            setEvaluations(prev => prev.map(e => 
+              e.id === selectedEvaluation 
+                ? { ...e, status: 'submitted' as const }
+                : e
+            ));
             setActiveView('dashboard');
             setSelectedEvaluation(null);
+          }}
+          onSaveDraft={async (answers) => {
+            console.log('Saved draft:', answers);
+            // Aquí se podría implementar guardado en localStorage o backend
+            localStorage.setItem(`evaluation-draft-${selectedEvaluation}`, JSON.stringify(answers));
           }}
         />
       );
     }
   }
 
-  const activeCourses = mockCourses.filter(c => c.status === 'active');
-  const completedCourses = mockCourses.filter(c => c.status === 'completed');
-  const availableCourses = mockCourses.filter(c => c.status === 'available');
-  const pendingEvaluations = mockEvaluations.filter(e => e.status === 'pending');
+  if (activeView === 'profile') {
+    return (
+      <ProfilePage
+        user={{
+          id: user.id,
+          email: user.email,
+          displayName: user.name,
+          photoURL: undefined,
+          role: 'student' as const,
+          career: 'Computer Science',
+          cohort: '2024 Spring',
+          enrollmentDate: '2024-01-15',
+          lastLogin: new Date().toISOString(),
+          bio: 'Passionate about web development and learning new technologies.',
+          phone: '+1 (555) 123-4567',
+          dateOfBirth: '2000-05-15',
+          preferences: {
+            emailNotifications: true,
+            courseUpdates: true,
+            gradeNotifications: true,
+            marketingEmails: false
+          }
+        }}
+        onUpdateProfile={onUpdateProfile}
+        onUpdatePassword={onUpdatePassword}
+        onBack={() => setActiveView('dashboard')}
+      />
+    );
+  }
 
-  const filteredCourses = mockCourses.filter(course => 
+  const activeCourses = courses.filter(c => c.status === 'active');
+  const completedCourses = courses.filter(c => c.status === 'completed');
+  const availableCourses = courses.filter(c => c.status === 'available');
+  const pendingEvaluations = evaluations.filter(e => e.status === 'pending');
+
+  const filteredCourses = courses.filter(course => 
     course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     course.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -172,11 +257,12 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
       </div>
 
       <Tabs value={activeView} onValueChange={setActiveView} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="courses">My Courses</TabsTrigger>
           <TabsTrigger value="catalog">Course Catalog</TabsTrigger>
           <TabsTrigger value="grades">My Grades</TabsTrigger>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6">
@@ -302,148 +388,40 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
         </TabsContent>
 
         <TabsContent value="courses" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockCourses.filter(c => c.status !== 'available').map(course => (
-              <Card key={course.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">{course.title}</CardTitle>
-                    <Badge variant={course.status === 'completed' ? 'default' : 'secondary'}>
-                      {course.status}
-                    </Badge>
-                  </div>
-                  <CardDescription>{course.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>{course.instructor}</span>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-current text-yellow-500" />
-                        {course.rating}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>{course.duration}</span>
-                      <span>{course.modules} modules</span>
-                    </div>
-                    {course.status === 'active' && (
-                      <div className="space-y-2">
-                        <Progress value={course.progress} />
-                        <span className="text-sm text-muted-foreground">{course.progress}% complete</span>
-                      </div>
-                    )}
-                    <Button 
-                      className="w-full"
-                      onClick={() => {
-                        setSelectedCourse(course);
-                        setActiveView('course-viewer');
-                      }}
-                    >
-                      {course.status === 'completed' ? 'Review' : 'Continue'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <MyCourses
+            courses={courses}
+            onCourseSelect={(course) => {
+              setSelectedCourse(course);
+              setActiveView('course-viewer');
+            }}
+            onViewGrades={(courseId) => {
+              setActiveView('grades');
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="catalog" className="space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search courses..."
-                className="pl-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <Button variant="outline">
-              <Filter className="mr-2 h-4 w-4" />
-              Filters
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses.map(course => (
-              <Card key={course.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <CardTitle className="text-lg">{course.title}</CardTitle>
-                  <CardDescription>{course.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>{course.instructor}</span>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-current text-yellow-500" />
-                        {course.rating}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>{course.duration}</span>
-                      <span>{course.modules} modules</span>
-                    </div>
-                    <Button className="w-full" variant={course.status === 'available' ? 'default' : 'outline'}>
-                      {course.status === 'available' ? 'Request Enrollment' : 'View Course'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <CourseCatalog
+            enrolledCourses={courses.filter(c => c.status === 'active' || c.status === 'completed').map(c => c.id)}
+            onCourseSelect={(course) => {
+              setSelectedCourseForDetail(course);
+              setActiveView('course-detail');
+            }}
+            onEnrollmentRequest={(courseId) => {
+              console.log('Enrollment requested for course:', courseId);
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="grades" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>My Grades</CardTitle>
-              <CardDescription>Your evaluation results and scores</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockEvaluations.map(evaluation => (
-                  <div key={evaluation.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-medium">{evaluation.title}</h3>
-                        <Badge variant="outline">{evaluation.type}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{evaluation.course}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Due: {new Date(evaluation.dueDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {evaluation.status === 'graded' && evaluation.score !== undefined ? (
-                        <>
-                          <div className="text-right">
-                            <p className="font-bold text-lg">{evaluation.score}/{evaluation.maxScore}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {Math.round((evaluation.score / evaluation.maxScore) * 100)}%
-                            </p>
-                          </div>
-                          <CheckCircle className="h-6 w-6 text-green-600" />
-                        </>
-                      ) : evaluation.status === 'submitted' ? (
-                        <>
-                          <span className="text-sm text-muted-foreground">Under Review</span>
-                          <Clock className="h-6 w-6 text-orange-600" />
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-sm text-muted-foreground">Pending</span>
-                          <XCircle className="h-6 w-6 text-red-600" />
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <MyGrades
+            onViewSubmission={(submissionId) => {
+              console.log('View submission:', submissionId);
+            }}
+            onDownloadFeedback={(submissionId) => {
+              console.log('Download feedback for submission:', submissionId);
+            }}
+          />
         </TabsContent>
       </Tabs>
     </div>
