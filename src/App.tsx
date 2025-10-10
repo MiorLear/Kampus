@@ -5,15 +5,18 @@
   import { AdminDashboard } from './components/admin/AdminDashboard';
   import { Navigation } from './components/Navigation';
   import { InitializeData } from './components/InitializeData';
+  import { ProfilePage } from './components/profiles/ProfilePage';
   import { useAuth } from './hooks/useAuth';
   import { Toaster } from './components/ui/sonner';
   import { Loader2 } from 'lucide-react';
   
   type AuthState = 'login' | 'register' | 'forgot-password' | 'email-verification';
+  type ViewState = 'dashboard' | 'profile';
   
   export default function App() {
     const { user, loading, logout } = useAuth();
     const [authState, setAuthState] = useState<AuthState>('login');
+    const [viewState, setViewState] = useState<ViewState>('dashboard');
     const [showInitialize, setShowInitialize] = useState(false);
   
     // Check if this is a new user (you can implement your own logic here)
@@ -72,9 +75,27 @@
   
     return (
       <div className="min-h-screen bg-background">
-        <Navigation user={user} onLogout={logout} />
+        <Navigation 
+          user={user} 
+          onLogout={logout} 
+          onViewProfile={() => setViewState('profile')}
+        />
         <main className="pt-16">
-          {renderDashboard()}
+          {viewState === 'profile' ? (
+            <div>
+              <div className="p-6">
+                <button
+                  onClick={() => setViewState('dashboard')}
+                  className="mb-4 text-sm text-muted-foreground hover:text-foreground flex items-center gap-2"
+                >
+                  ← Back to Dashboard
+                </button>
+              </div>
+              <ProfilePage userId={user.id} currentUserId={user.id} />
+            </div>
+          ) : (
+            renderDashboard()
+          )}
         </main>
         {showInitialize && user && (
           <InitializeData

@@ -22,9 +22,10 @@ interface User {
 interface NavigationProps {
   user: User | null;
   onLogout: () => void;
+  onViewProfile?: () => void;
 }
 
-export function Navigation({ user, onLogout }: NavigationProps) {
+export function Navigation({ user, onLogout, onViewProfile }: NavigationProps) {
   if (!user) return null;
 
   const getRoleBadgeColor = (role: string) => {
@@ -70,7 +71,7 @@ export function Navigation({ user, onLogout }: NavigationProps) {
                 <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={onViewProfile}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>

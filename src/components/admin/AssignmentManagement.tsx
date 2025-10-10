@@ -35,11 +35,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { Search, Eye, Trash2, MoreVertical, FileText, Users, Calendar } from 'lucide-react';
+import { Search, Eye, Trash2, MoreVertical, FileText, Users, Calendar, Edit, Plus } from 'lucide-react';
 import { Assignment, Course, User } from '../../services/firestore.service';
 import { FirestoreService } from '../../services/firestore.service';
 import { toast } from 'sonner';
 import { formatDate } from '../../utils/firebase-helpers';
+import { AssignmentEditor } from './AssignmentEditor';
 
 interface AssignmentManagementProps {
   courses: Course[];
@@ -54,6 +55,8 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditorDialog, setShowEditorDialog] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
 
   useEffect(() => {
     loadAssignments();
@@ -108,6 +111,16 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
     setShowDetailsDialog(true);
   };
 
+  const handleEditAssignment = (assignment: Assignment) => {
+    setEditingAssignment(assignment);
+    setShowEditorDialog(true);
+  };
+
+  const handleCreateAssignment = () => {
+    setEditingAssignment(null);
+    setShowEditorDialog(true);
+  };
+
   const handleDeleteAssignment = async () => {
     if (!selectedAssignment) return;
 
@@ -120,6 +133,12 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
       toast.error('Failed to delete assignment');
       console.error(error);
     }
+  };
+
+  const handleEditorSave = () => {
+    loadAssignments();
+    setShowEditorDialog(false);
+    setEditingAssignment(null);
   };
 
   const getStatusBadge = (dueDate?: string) => {
@@ -146,6 +165,10 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
             </CardDescription>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
+            <Button onClick={handleCreateAssignment} className="sm:mr-2">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Assignment
+            </Button>
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -224,6 +247,10 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
                               <DropdownMenuItem onClick={() => handleViewDetails(assignment)}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditAssignment(assignment)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Assignment
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
@@ -316,6 +343,15 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Assignment Editor Dialog */}
+      <AssignmentEditor
+        open={showEditorDialog}
+        onOpenChange={setShowEditorDialog}
+        assignment={editingAssignment}
+        courses={courses}
+        onSave={handleEditorSave}
+      />
     </Card>
   );
 }

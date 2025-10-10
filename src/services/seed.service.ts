@@ -105,6 +105,14 @@ export class SeedService {
         // For students, we can't enroll them automatically in courses
         // They would need to browse and enroll themselves
         console.log('Student account created. Browse courses to enroll.');
+        
+        // Check if there are any courses available for students to browse
+        const allCourses = await FirestoreService.getAllCourses();
+        if (allCourses.length === 0) {
+          console.log('No courses available yet. Students will see an empty course list.');
+        } else {
+          console.log(`${allCourses.length} courses available for students to browse.`);
+        }
       }
 
       // Log the activity

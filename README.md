@@ -18,10 +18,36 @@ A comprehensive Learning Management System built with React, TypeScript, and Fir
 - ✅ Forgot password page
 - ✅ Role-based dashboards
 
-### User Roles
-- **Students**: Access courses, track progress, submit assignments
-- **Teachers**: Create courses, manage students, track performance
-- **Administrators**: Oversee platform, manage users, system analytics
+### User Roles & Profiles
+
+Kampus utiliza un sistema de perfiles robusto con tres tipos de usuarios:
+
+#### 👨‍🎓 **Estudiante (Student)**
+- Acceso y visualización de cursos
+- Seguimiento de progreso académico
+- Envío de tareas y trabajos
+- Información académica completa (matrícula, programa, semestre)
+- Estadísticas personalizadas (promedio, tareas, asistencia)
+- Preferencias de aprendizaje y accesibilidad
+
+#### 👨‍🏫 **Profesor (Teacher)**
+- Creación y gestión de cursos
+- Gestión de estudiantes y calificaciones
+- Creación y evaluación de tareas
+- Información profesional (credenciales, educación, certificaciones)
+- Especialización y materias impartidas
+- Horarios de oficina y disponibilidad
+- Estadísticas de enseñanza
+
+#### 👨‍💼 **Administrador (Admin)**
+- Gestión completa de usuarios y permisos
+- Supervisión y aprobación de cursos
+- Analíticas y reportes del sistema
+- Tres niveles: Super Admin, Admin, Moderador
+- Permisos configurables por área
+- Auditoría y logs de actividad
+
+> 📖 **Documentación detallada**: Ver [PERFILES_DE_USUARIO.md](./PERFILES_DE_USUARIO.md) para información completa sobre cada perfil
 
 ## Getting Started
 
@@ -63,6 +89,35 @@ npm run dev
 ```
 
 5. Open [http://localhost:5173](http://localhost:5173) in your browser
+
+### Poblar Base de Datos con Usuarios de Ejemplo
+
+Para desarrollo y testing, puedes crear usuarios de ejemplo automáticamente:
+
+**Opción 1: Desde la UI**
+1. Navega a la página de desarrollo (agregar componente `SeedProfiles`)
+2. Haz clic en "Crear Todos los Usuarios"
+3. Los usuarios se crearán con la contraseña: `Kampus2024!`
+
+**Opción 2: Desde código**
+```typescript
+import { seedAllProfiles, printTestCredentials } from './utils/seed-profiles';
+
+// Crear todos los usuarios de ejemplo
+const results = await seedAllProfiles();
+
+// Ver credenciales en consola
+printTestCredentials();
+```
+
+**Usuarios incluidos:**
+- 3 Estudiantes (diferentes niveles y programas)
+- 3 Profesores (diferentes especialidades)
+- 3 Administradores (super admin, admin, moderador)
+
+> 🔐 **Credenciales por defecto**: Todos los usuarios de ejemplo usan la contraseña `Kampus2024!`
+
+Ver [PERFILES_DE_USUARIO.md](./PERFILES_DE_USUARIO.md) para detalles de cada usuario.
 
 ## Tech Stack
 
