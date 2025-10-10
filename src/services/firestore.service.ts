@@ -1,0 +1,638 @@
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  addDoc,
+  Timestamp,
+  QueryConstraint,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { db } from '../config/firebase';
+
+// ========== TYPES ==========
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'student' | 'teacher' | 'admin';
+  photo_url?: string;
+  created_at: string;
+}
+
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  teacher_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Enrollment {
+  id: string;
+  student_id: string;
+  course_id: string;
+  enrolled_at: string;
+  progress: number; // 0-100
+}
+
+export interface Assignment {
+  id: string;
+  course_id: string;
+  title: string;
+  description: string;
+  due_date?: string;
+  created_at: string;
+}
+
+export interface Submission {
+  id: string;
+  assignment_id: string;
+  student_id: string;
+  submitted_at: string;
+  grade?: number;
+  feedback?: string;
+  file_url?: string;
+}
+
+export interface Announcement {
+  id: string;
+  course_id: string;
+  title: string;
+  message: string;
+  created_at: string;
+}
+
+export interface Message {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  sent_at: string;
+  read: boolean;
+}
+
+export interface ActivityLog {
+  id: string;
+  user_id: string;
+  action: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+// ========== FIRESTORE SERVICE ==========
+
+export class FirestoreService {
+  // ========== USERS ==========
+  
+  static async getUser(userId: string): Promise<User | null> {
+    try {
+      const docSnap = await getDoc(doc(db, 'users', userId));
+      if (!docSnap.exists()) return null;
+      return { id: docSnap.id, ...docSnap.data() } as User;
+    } catch (error) {
+      console.error('Error getting user:', error);
+      return null;
+    }
+  }
+
+  static async getAllUsers(): Promise<User[]> {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'users'));
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+    } catch (error) {
+      console.error('Error getting users:', error);
+      return [];
+    }
+  }
+
+  static async getUsersByRole(role: 'student' | 'teacher' | 'admin'): Promise<User[]> {
+    try {
+      const q = query(collection(db, 'users'), where('role', '==', role));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+    } catch (error) {
+      console.error('Error getting users by role:', error);
+      return [];
+    }
+  }
+
+  static async updateUser(userId: string, data: Partial<User>): Promise<void> {
+    await updateDoc(doc(db, 'users', userId), data as any);
+  }
+
+  static async deleteUser(userId: string): Promise<void> {
+    await deleteDoc(doc(db, 'users', userId));
+  }
+
+  static async createUser(userData: Omit<User, 'id'>): Promise<string> {
+    const docRef = await addDoc(collection(db, 'users'), {
+      ...userData,
+      created_at: new Date().toISOString(),
+    });
+    return docRef.id;
+  }
+
+  // ========== COURSES ==========
+  
+  static async createCourse(course: Omit<Course, 'id' | 'created_at' | 'updated_at'>): Promise<string> {
+    const docRef = await addDoc(collection(db, 'courses'), {
+      ...course,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    return docRef.id;
+  }
+
+  static async getCourse(courseId: string): Promise<Course | null> {
+    try {
+      const docSnap = await getDoc(doc(db, 'courses', courseId));
+      if (!docSnap.exists()) return null;
+      return { id: docSnap.id, ...docSnap.data() } as Course;
+    } catch (error) {
+      console.error('Error getting course:', error);
+      return null;
+    }
+  }
+
+  static async getAllCourses(): Promise<Course[]> {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'courses'));
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+    } catch (error) {
+      console.error('Error getting courses:', error);
+      return [];
+    }
+  }
+
+  static async getCoursesByTeacher(teacherId: string): Promise<Course[]> {
+    try {
+      const q = query(collection(db, 'courses'), where('teacher_id', '==', teacherId));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+    } catch (error) {
+      console.error('Error getting courses by teacher:', error);
+      return [];
+    }
+  }
+
+  static async updateCourse(courseId: string, updates: Partial<Course>): Promise<void> {
+    await updateDoc(doc(db, 'courses', courseId), {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    } as any);
+  }
+
+  static async deleteCourse(courseId: string): Promise<void> {
+    await deleteDoc(doc(db, 'courses', courseId));
+  }
+
+  // ========== ENROLLMENTS ==========
+
+  static async enrollStudent(enrollment: Omit<Enrollment, 'id' | 'enrolled_at'>): Promise<string> {
+    const docRef = await addDoc(collection(db, 'enrollments'), {
+      ...enrollment,
+      enrolled_at: new Date().toISOString(),
+    });
+    return docRef.id;
+  }
+
+  static async getEnrollmentsByStudent(studentId: string): Promise<Enrollment[]> {
+    try {
+      const q = query(collection(db, 'enrollments'), where('student_id', '==', studentId));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Enrollment));
+    } catch (error) {
+      console.error('Error getting enrollments by student:', error);
+      return [];
+    }
+  }
+
+  static async getEnrollmentsByCourse(courseId: string): Promise<Enrollment[]> {
+    try {
+      const q = query(collection(db, 'enrollments'), where('course_id', '==', courseId));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Enrollment));
+    } catch (error) {
+      console.error('Error getting enrollments by course:', error);
+      return [];
+    }
+  }
+
+  static async updateEnrollment(enrollmentId: string, updates: Partial<Enrollment>): Promise<void> {
+    await updateDoc(doc(db, 'enrollments', enrollmentId), updates as any);
+  }
+
+  static async deleteEnrollment(enrollmentId: string): Promise<void> {
+    await deleteDoc(doc(db, 'enrollments', enrollmentId));
+  }
+
+  // ========== ASSIGNMENTS ==========
+
+  static async createAssignment(assignment: Omit<Assignment, 'id' | 'created_at'>): Promise<string> {
+    const docRef = await addDoc(collection(db, 'assignments'), {
+      ...assignment,
+      created_at: new Date().toISOString(),
+    });
+    return docRef.id;
+  }
+
+  static async getAssignment(assignmentId: string): Promise<Assignment | null> {
+    try {
+      const docSnap = await getDoc(doc(db, 'assignments', assignmentId));
+      if (!docSnap.exists()) return null;
+      return { id: docSnap.id, ...docSnap.data() } as Assignment;
+    } catch (error) {
+      console.error('Error getting assignment:', error);
+      return null;
+    }
+  }
+
+  static async getAssignmentsByCourse(courseId: string): Promise<Assignment[]> {
+    try {
+      const q = query(collection(db, 'assignments'), where('course_id', '==', courseId));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assignment));
+    } catch (error) {
+      console.error('Error getting assignments by course:', error);
+      return [];
+    }
+  }
+
+  static async updateAssignment(assignmentId: string, updates: Partial<Assignment>): Promise<void> {
+    await updateDoc(doc(db, 'assignments', assignmentId), updates as any);
+  }
+
+  static async deleteAssignment(assignmentId: string): Promise<void> {
+    await deleteDoc(doc(db, 'assignments', assignmentId));
+  }
+
+  // ========== SUBMISSIONS ==========
+
+  static async createSubmission(submission: Omit<Submission, 'id' | 'submitted_at'>): Promise<string> {
+    const docRef = await addDoc(collection(db, 'submissions'), {
+      ...submission,
+      submitted_at: new Date().toISOString(),
+    });
+    return docRef.id;
+  }
+
+  static async getSubmission(submissionId: string): Promise<Submission | null> {
+    try {
+      const docSnap = await getDoc(doc(db, 'submissions', submissionId));
+      if (!docSnap.exists()) return null;
+      return { id: docSnap.id, ...docSnap.data() } as Submission;
+    } catch (error) {
+      console.error('Error getting submission:', error);
+      return null;
+    }
+  }
+
+  static async getSubmissionsByAssignment(assignmentId: string): Promise<Submission[]> {
+    try {
+      const q = query(collection(db, 'submissions'), where('assignment_id', '==', assignmentId));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Submission));
+    } catch (error) {
+      console.error('Error getting submissions by assignment:', error);
+      return [];
+    }
+  }
+
+  static async getSubmissionsByStudent(studentId: string): Promise<Submission[]> {
+    try {
+      const q = query(collection(db, 'submissions'), where('student_id', '==', studentId));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Submission));
+    } catch (error) {
+      console.error('Error getting submissions by student:', error);
+      return [];
+    }
+  }
+
+  static async updateSubmission(submissionId: string, updates: Partial<Submission>): Promise<void> {
+    await updateDoc(doc(db, 'submissions', submissionId), updates as any);
+  }
+
+  static async deleteSubmission(submissionId: string): Promise<void> {
+    await deleteDoc(doc(db, 'submissions', submissionId));
+  }
+
+  // ========== ANNOUNCEMENTS ==========
+
+  static async createAnnouncement(announcement: Omit<Announcement, 'id' | 'created_at'>): Promise<string> {
+    const docRef = await addDoc(collection(db, 'announcements'), {
+      ...announcement,
+      created_at: new Date().toISOString(),
+    });
+    return docRef.id;
+  }
+
+  static async getAnnouncement(announcementId: string): Promise<Announcement | null> {
+    try {
+      const docSnap = await getDoc(doc(db, 'announcements', announcementId));
+      if (!docSnap.exists()) return null;
+      return { id: docSnap.id, ...docSnap.data() } as Announcement;
+    } catch (error) {
+      console.error('Error getting announcement:', error);
+      return null;
+    }
+  }
+
+  static async getAnnouncementsByCourse(courseId: string): Promise<Announcement[]> {
+    try {
+      const q = query(
+        collection(db, 'announcements'),
+        where('course_id', '==', courseId),
+        orderBy('created_at', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
+    } catch (error) {
+      console.error('Error getting announcements by course:', error);
+      return [];
+    }
+  }
+
+  static async updateAnnouncement(announcementId: string, updates: Partial<Announcement>): Promise<void> {
+    await updateDoc(doc(db, 'announcements', announcementId), updates as any);
+  }
+
+  static async deleteAnnouncement(announcementId: string): Promise<void> {
+    await deleteDoc(doc(db, 'announcements', announcementId));
+  }
+
+  // ========== MESSAGES ==========
+
+  static async sendMessage(message: Omit<Message, 'id' | 'sent_at' | 'read'>): Promise<string> {
+    const docRef = await addDoc(collection(db, 'messages'), {
+      ...message,
+      sent_at: new Date().toISOString(),
+      read: false,
+    });
+    return docRef.id;
+  }
+
+  static async getMessage(messageId: string): Promise<Message | null> {
+    try {
+      const docSnap = await getDoc(doc(db, 'messages', messageId));
+      if (!docSnap.exists()) return null;
+      return { id: docSnap.id, ...docSnap.data() } as Message;
+    } catch (error) {
+      console.error('Error getting message:', error);
+      return null;
+    }
+  }
+
+  static async getMessagesBetweenUsers(userId1: string, userId2: string): Promise<Message[]> {
+    try {
+      const q1 = query(
+        collection(db, 'messages'),
+        where('sender_id', '==', userId1),
+        where('receiver_id', '==', userId2)
+      );
+      const q2 = query(
+        collection(db, 'messages'),
+        where('sender_id', '==', userId2),
+        where('receiver_id', '==', userId1)
+      );
+      
+      const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      
+      const messages1 = snapshot1.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+      const messages2 = snapshot2.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+      
+      return [...messages1, ...messages2].sort((a, b) => 
+        new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime()
+      );
+    } catch (error) {
+      console.error('Error getting messages between users:', error);
+      return [];
+    }
+  }
+
+  static async getReceivedMessages(userId: string): Promise<Message[]> {
+    try {
+      const q = query(
+        collection(db, 'messages'),
+        where('receiver_id', '==', userId),
+        orderBy('sent_at', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+    } catch (error) {
+      console.error('Error getting received messages:', error);
+      return [];
+    }
+  }
+
+  static async getSentMessages(userId: string): Promise<Message[]> {
+    try {
+      const q = query(
+        collection(db, 'messages'),
+        where('sender_id', '==', userId),
+        orderBy('sent_at', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+    } catch (error) {
+      console.error('Error getting sent messages:', error);
+      return [];
+    }
+  }
+
+  static async markMessageAsRead(messageId: string): Promise<void> {
+    await updateDoc(doc(db, 'messages', messageId), { read: true });
+  }
+
+  static async deleteMessage(messageId: string): Promise<void> {
+    await deleteDoc(doc(db, 'messages', messageId));
+  }
+
+  // ========== ACTIVITY LOGS ==========
+
+  static async logActivity(log: Omit<ActivityLog, 'id' | 'timestamp'>): Promise<string> {
+    const docRef = await addDoc(collection(db, 'activity_logs'), {
+      ...log,
+      timestamp: new Date().toISOString(),
+    });
+    return docRef.id;
+  }
+
+  static async getActivityLogsByUser(userId: string, limitCount: number = 50): Promise<ActivityLog[]> {
+    try {
+      const q = query(
+        collection(db, 'activity_logs'),
+        where('user_id', '==', userId),
+        orderBy('timestamp', 'desc'),
+        limit(limitCount)
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ActivityLog));
+    } catch (error) {
+      console.error('Error getting activity logs:', error);
+      return [];
+    }
+  }
+
+  static async getAllActivityLogs(limitCount: number = 100): Promise<ActivityLog[]> {
+    try {
+      const q = query(
+        collection(db, 'activity_logs'),
+        orderBy('timestamp', 'desc'),
+        limit(limitCount)
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ActivityLog));
+    } catch (error) {
+      console.error('Error getting all activity logs:', error);
+      return [];
+    }
+  }
+
+  // ========== ANALYTICS ==========
+
+  static async getStudentAnalytics(studentId: string) {
+    try {
+      const [enrollments, submissions] = await Promise.all([
+        this.getEnrollmentsByStudent(studentId),
+        this.getSubmissionsByStudent(studentId),
+      ]);
+
+      const totalCourses = enrollments.length;
+      const averageProgress = totalCourses > 0
+        ? enrollments.reduce((sum, e) => sum + e.progress, 0) / totalCourses
+        : 0;
+
+      const gradedSubmissions = submissions.filter(s => s.grade !== undefined && s.grade !== null);
+      const averageGrade = gradedSubmissions.length > 0
+        ? gradedSubmissions.reduce((sum, s) => sum + (s.grade || 0), 0) / gradedSubmissions.length
+        : 0;
+
+      const pendingSubmissions = submissions.filter(s => s.grade === undefined || s.grade === null);
+
+      return {
+        totalCourses,
+        averageProgress,
+        totalSubmissions: submissions.length,
+        gradedSubmissions: gradedSubmissions.length,
+        pendingSubmissions: pendingSubmissions.length,
+        averageGrade,
+        enrollments,
+        submissions,
+      };
+    } catch (error) {
+      console.error('Error getting student analytics:', error);
+      return null;
+    }
+  }
+
+  static async getTeacherAnalytics(teacherId: string) {
+    try {
+      const courses = await this.getCoursesByTeacher(teacherId);
+      const courseIds = courses.map(c => c.id);
+
+      const enrollmentsPromises = courseIds.map(id => this.getEnrollmentsByCourse(id));
+      const assignmentsPromises = courseIds.map(id => this.getAssignmentsByCourse(id));
+      
+      const [enrollmentsArrays, assignmentsArrays] = await Promise.all([
+        Promise.all(enrollmentsPromises),
+        Promise.all(assignmentsPromises),
+      ]);
+
+      const enrollments = enrollmentsArrays.flat();
+      const assignments = assignmentsArrays.flat();
+
+      const assignmentIds = assignments.map(a => a.id);
+      const submissionsPromises = assignmentIds.map(id => this.getSubmissionsByAssignment(id));
+      const submissionsArrays = await Promise.all(submissionsPromises);
+      const submissions = submissionsArrays.flat();
+
+      const pendingGrading = submissions.filter(s => s.grade === undefined || s.grade === null).length;
+
+      return {
+        totalCourses: courses.length,
+        totalStudents: enrollments.length,
+        totalAssignments: assignments.length,
+        totalSubmissions: submissions.length,
+        pendingGrading,
+        courses,
+        enrollments,
+        assignments,
+        submissions,
+      };
+    } catch (error) {
+      console.error('Error getting teacher analytics:', error);
+      return null;
+    }
+  }
+
+  static async getCourseAnalytics(courseId: string) {
+    try {
+      const [course, enrollments, assignments, announcements] = await Promise.all([
+        this.getCourse(courseId),
+        this.getEnrollmentsByCourse(courseId),
+        this.getAssignmentsByCourse(courseId),
+        this.getAnnouncementsByCourse(courseId),
+      ]);
+
+      const totalStudents = enrollments.length;
+      const averageProgress = totalStudents > 0
+        ? enrollments.reduce((sum, e) => sum + e.progress, 0) / totalStudents
+        : 0;
+
+      return {
+        course,
+        totalStudents,
+        averageProgress,
+        totalAssignments: assignments.length,
+        totalAnnouncements: announcements.length,
+        enrollments,
+        assignments,
+        announcements,
+      };
+    } catch (error) {
+      console.error('Error getting course analytics:', error);
+      return null;
+    }
+  }
+
+  static async getSystemAnalytics() {
+    try {
+      const [users, courses, enrollments, assignments, submissions] = await Promise.all([
+        this.getAllUsers(),
+        this.getAllCourses(),
+        getDocs(collection(db, 'enrollments')),
+        getDocs(collection(db, 'assignments')),
+        getDocs(collection(db, 'submissions')),
+      ]);
+
+      const students = users.filter(u => u.role === 'student');
+      const teachers = users.filter(u => u.role === 'teacher');
+      const admins = users.filter(u => u.role === 'admin');
+
+      return {
+        totalUsers: users.length,
+        totalStudents: students.length,
+        totalTeachers: teachers.length,
+        totalAdmins: admins.length,
+        totalCourses: courses.length,
+        totalEnrollments: enrollments.size,
+        totalAssignments: assignments.size,
+        totalSubmissions: submissions.size,
+      };
+    } catch (error) {
+      console.error('Error getting system analytics:', error);
+      return null;
+    }
+  }
+}
