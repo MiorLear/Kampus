@@ -254,9 +254,20 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
             </CardHeader>
             <CardContent>
               {enrolledCourses.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  You're not enrolled in any courses yet. Browse available courses to get started!
-                </p>
+                <div className="text-center py-6">
+                  <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-2">No enrolled courses</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Browse available courses to start your learning journey
+                  </p>
+                  <Button 
+                    onClick={() => setActiveTab('courses')} 
+                    size="sm"
+                    variant="outline"
+                  >
+                    Browse Courses
+                  </Button>
+                </div>
               ) : (
                 <div className="grid gap-4">
                   {enrolledCourses.slice(0, 3).map((course) => (
@@ -352,9 +363,16 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
               ))}
             
             {availableCourses.length === 0 && (
-              <p className="text-muted-foreground text-center py-8">
-                No courses available at the moment
-              </p>
+              <div className="text-center py-12">
+                <BookOpen className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">No courses available</h3>
+                <p className="text-muted-foreground mb-4">
+                  Teachers haven't created any courses yet. Check back later or ask your instructor to create some courses.
+                </p>
+                <div className="text-sm text-muted-foreground">
+                  <p>💡 <strong>Tip:</strong> Contact your teacher or administrator to get started with course content.</p>
+                </div>
+              </div>
             )}
           </div>
         </TabsContent>

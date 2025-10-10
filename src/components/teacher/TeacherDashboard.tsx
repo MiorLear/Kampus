@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
+import { AssignmentEditor } from '../admin/AssignmentEditor';
 
 interface UserProfile {
   id: string;
@@ -41,6 +42,10 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [showCreateAssignment, setShowCreateAssignment] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
+  const [showAssignmentEditor, setShowAssignmentEditor] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<any>(null);
+  const [showCourseDetails, setShowCourseDetails] = useState(false);
+  const [selectedCourseDetails, setSelectedCourseDetails] = useState<any>(null);
   
   const { courses, loading: coursesLoading, refreshCourses } = useCourses(user.id);
   
@@ -134,6 +139,27 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
       toast.error('Failed to create assignment');
       console.error(error);
     }
+  };
+
+  const handleEditAssignment = (assignment: any) => {
+    setEditingAssignment(assignment);
+    setShowAssignmentEditor(true);
+  };
+
+  const handleCreateNewAssignment = () => {
+    setEditingAssignment(null);
+    setShowAssignmentEditor(true);
+  };
+
+  const handleAssignmentEditorSave = () => {
+    loadData();
+    setShowAssignmentEditor(false);
+    setEditingAssignment(null);
+  };
+
+  const handleViewCourse = (course: any) => {
+    setSelectedCourseDetails(course);
+    setShowCourseDetails(true);
   };
 
   if (coursesLoading) {
@@ -267,9 +293,17 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
               </CardHeader>
               <CardContent>
                 {courses.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">
-                    No courses yet. Create your first course to get started!
-                  </p>
+                  <div className="text-center py-6">
+                    <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground mb-2">No courses yet</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Create your first course to start teaching students
+                    </p>
+                    <Button onClick={() => setShowCreateCourse(true)} size="sm">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Course
+                    </Button>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     {courses.slice(0, 3).map((course) => {
@@ -323,12 +357,21 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
             </CardHeader>
             <CardContent>
               {courses.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">No courses created yet</p>
-                  <Button onClick={() => setShowCreateCourse(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Your First Course
-                  </Button>
+                <div className="text-center py-12">
+                  <BookOpen className="h-16 w-16 mx-auto text-muted-foreground mb-6" />
+                  <h3 className="text-lg font-medium mb-2">No courses created yet</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Create your first course to start teaching students and sharing knowledge
+                  </p>
+                  <div className="space-y-3">
+                    <Button onClick={() => setShowCreateCourse(true)} size="lg">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Your First Course
+                    </Button>
+                    <div className="text-sm text-muted-foreground">
+                      <p>💡 <strong>Tip:</strong> You can also click "Initialize Sample Data" when you first login to get started with sample courses.</p>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -356,7 +399,12 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
                             >
                               Add Assignment
                             </Button>
-                            <Button size="sm">View</Button>
+                            <Button 
+                              size="sm"
+                              onClick={() => handleViewCourse(course)}
+                            >
+                              View
+                            </Button>
                           </div>
                         </div>
                         <p className="text-sm">{course.description}</p>
@@ -372,14 +420,30 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
         <TabsContent value="assignments" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>All Assignments</CardTitle>
-              <CardDescription>Manage course assignments</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>All Assignments</CardTitle>
+                  <CardDescription>Manage course assignments</CardDescription>
+                </div>
+                <Button onClick={handleCreateNewAssignment}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Assignment
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {allAssignments.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  No assignments created yet
-                </p>
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-2">No assignments created yet</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Create assignments for your courses to engage students
+                  </p>
+                  <Button onClick={handleCreateNewAssignment} size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Assignment
+                  </Button>
+                </div>
               ) : (
                 <div className="space-y-3">
                   {allAssignments.map((assignment) => {
@@ -395,7 +459,13 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
                             </p>
                           )}
                         </div>
-                        <Button size="sm" variant="outline">Edit</Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleEditAssignment(assignment)}
+                        >
+                          Edit
+                        </Button>
                       </div>
                     );
                   })}
@@ -483,6 +553,153 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
               </Button>
               <Button onClick={handleCreateAssignment}>Create Assignment</Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assignment Editor Dialog */}
+      <AssignmentEditor
+        open={showAssignmentEditor}
+        onOpenChange={setShowAssignmentEditor}
+        assignment={editingAssignment}
+        courses={courses}
+        onSave={handleAssignmentEditorSave}
+      />
+
+      {/* Course Details Modal */}
+      <Dialog open={showCourseDetails} onOpenChange={setShowCourseDetails}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedCourseDetails?.title}</DialogTitle>
+            <DialogDescription>
+              Course details and management
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedCourseDetails && (
+            <div className="space-y-6">
+              {/* Course Information */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-medium mb-2">Description</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedCourseDetails.description || 'No description provided'}
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-medium mb-2">Course Stats</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Students:</span>
+                        <span>{courseEnrollments.filter(e => e.course_id === selectedCourseDetails.id).length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Assignments:</span>
+                        <span>{allAssignments.filter(a => a.course_id === selectedCourseDetails.id).length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Created:</span>
+                        <span>{selectedCourseDetails.created_at ? formatDate(selectedCourseDetails.created_at) : 'Unknown'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-medium mb-2">Course Actions</h3>
+                    <div className="space-y-2">
+                      <Button 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => {
+                          setSelectedCourse(selectedCourseDetails.id);
+                          setShowCreateAssignment(true);
+                          setShowCourseDetails(false);
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Assignment
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          // Future: Navigate to course editor
+                          toast.info('Course editing feature coming soon!');
+                        }}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Course
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Assignments */}
+              {(() => {
+                const courseAssignments = allAssignments.filter(a => a.course_id === selectedCourseDetails.id);
+                return courseAssignments.length > 0 ? (
+                  <div>
+                    <h3 className="font-medium mb-3">Recent Assignments</h3>
+                    <div className="space-y-2">
+                      {courseAssignments.slice(0, 3).map((assignment) => (
+                        <div key={assignment.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium text-sm">{assignment.title}</p>
+                            {assignment.due_date && (
+                              <p className="text-xs text-muted-foreground">
+                                Due: {formatDate(assignment.due_date)}
+                              </p>
+                            )}
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setEditingAssignment(assignment);
+                              setShowAssignmentEditor(true);
+                              setShowCourseDetails(false);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      {courseAssignments.length > 3 && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          And {courseAssignments.length - 3} more assignments...
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">No assignments yet</p>
+                    <Button 
+                      size="sm" 
+                      className="mt-2"
+                      onClick={() => {
+                        setSelectedCourse(selectedCourseDetails.id);
+                        setShowCreateAssignment(true);
+                        setShowCourseDetails(false);
+                      }}
+                    >
+                      Create First Assignment
+                    </Button>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+          
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setShowCourseDetails(false)}>
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

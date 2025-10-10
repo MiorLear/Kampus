@@ -73,9 +73,16 @@ export function InitializeData({ userId, userName, userRole, onComplete }: Initi
             <>
               <div className="text-sm text-muted-foreground space-y-2">
                 {userRole === 'teacher' && (
-                  <p>
-                    As a teacher, we'll create sample courses and evaluations for you to explore.
-                  </p>
+                  <div>
+                    <p className="mb-2">
+                      As a teacher, we'll create sample courses and assignments for you to explore and customize.
+                    </p>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>✅ 3 sample courses with assignments</p>
+                      <p>✅ Ready-to-use content you can modify</p>
+                      <p>✅ Perfect starting point for your teaching</p>
+                    </div>
+                  </div>
                 )}
                 {userRole === 'admin' && (
                   <p>
@@ -83,9 +90,16 @@ export function InitializeData({ userId, userName, userRole, onComplete }: Initi
                   </p>
                 )}
                 {userRole === 'student' && (
-                  <p>
-                    You can skip this step and browse courses created by teachers.
-                  </p>
+                  <div>
+                    <p className="mb-2">
+                      You can skip this step and browse courses created by teachers.
+                    </p>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>📚 Browse available courses</p>
+                      <p>🎯 Enroll in courses that interest you</p>
+                      <p>📝 Complete assignments and track progress</p>
+                    </div>
+                  </div>
                 )}
               </div>
 
