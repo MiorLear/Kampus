@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { Logo } from '../Logo';
 import { Mail, Lock, User, CheckCircle, Loader2 } from 'lucide-react';
 import { AuthService, UserRole } from '../../services/auth.service';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 const instituteLogoUrl = 'https://images.unsplash.com/photo-1621008945448-513cef3a463d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpbnN0aXR1dGUlMjBlZHVjYXRpb24lMjBsb2dvfGVufDF8fHx8MTc1NzI4NTgzN3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral';
 

@@ -22,7 +22,7 @@ import { Input } from '../ui/input';
 import { useEnrollments, useCourses, useSubmissions, useAssignments } from '../../hooks/useFirestore';
 import { FirestoreService } from '../../services/firestore.service';
 import { formatDate, getTimeRemaining, isOverdue, getGradeLetter } from '../../utils/firebase-helpers';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface UserProfile {
   id: string;

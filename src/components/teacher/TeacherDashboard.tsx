@@ -18,7 +18,7 @@ import {
 import { useCourses, useAssignments, useSubmissions, useEnrollments } from '../../hooks/useFirestore';
 import { FirestoreService } from '../../services/firestore.service';
 import { formatDate, getTimeRemaining } from '../../utils/firebase-helpers';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';

@@ -1,6 +1,6 @@
 import { FirestoreService } from '../services/firestore.service';
 import { SeedService } from '../services/seed.service';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 /**
  * Initialize sample data for a new user

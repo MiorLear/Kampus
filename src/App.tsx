@@ -1,14 +1,16 @@
-  import React, { useState, useEffect } from 'react';
-  import { AuthPage } from './components/auth/AuthPage';
-  import { StudentDashboard } from './components/student/StudentDashboard';
-  import { TeacherDashboard } from './components/teacher/TeacherDashboard';
-  import { AdminDashboard } from './components/admin/AdminDashboard';
-  import { Navigation } from './components/Navigation';
-  import { InitializeData } from './components/InitializeData';
-  import { ProfilePage } from './components/profiles/ProfilePage';
-  import { useAuth } from './hooks/useAuth';
-  import { Toaster } from './components/ui/sonner';
-  import { Loader2 } from 'lucide-react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { AuthPage } from './components/auth/AuthPage';
+import { Navigation } from './components/Navigation';
+import { InitializeData } from './components/InitializeData';
+import { useAuth } from './hooks/useAuth';
+import { Toaster } from './components/ui/sonner';
+import { Loader2 } from 'lucide-react';
+
+// Lazy load dashboards and profile page for better code splitting
+const StudentDashboard = lazy(() => import('./components/student/StudentDashboard').then(module => ({ default: module.StudentDashboard })));
+const TeacherDashboard = lazy(() => import('./components/teacher/TeacherDashboard').then(module => ({ default: module.TeacherDashboard })));
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
+const ProfilePageLazy = lazy(() => import('./components/profiles/ProfilePage').then(module => ({ default: module.ProfilePage })));
   
   type AuthState = 'login' | 'register' | 'forgot-password' | 'email-verification';
   type ViewState = 'dashboard' | 'profile';
@@ -61,16 +63,31 @@
     };
   
     const renderDashboard = () => {
-      switch (user.role) {
-        case 'student':
-          return <StudentDashboard user={user} />;
-        case 'teacher':
-          return <TeacherDashboard user={user} />;
-        case 'admin':
-          return <AdminDashboard user={user} />;
-        default:
-          return <StudentDashboard user={user} />;
-      }
+      const DashboardComponent = () => {
+        switch (user.role) {
+          case 'student':
+            return <StudentDashboard user={user} />;
+          case 'teacher':
+            return <TeacherDashboard user={user} />;
+          case 'admin':
+            return <AdminDashboard user={user} />;
+          default:
+            return <StudentDashboard user={user} />;
+        }
+      };
+
+      return (
+        <Suspense fallback={
+          <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading dashboard...</p>
+            </div>
+          </div>
+        }>
+          <DashboardComponent />
+        </Suspense>
+      );
     };
   
     return (
@@ -91,7 +108,16 @@
                   ← Back to Dashboard
                 </button>
               </div>
-              <ProfilePage userId={user.id} currentUserId={user.id} />
+              <Suspense fallback={
+                <div className="min-h-screen bg-background flex items-center justify-center">
+                  <div className="text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+                    <p className="text-muted-foreground">Loading profile...</p>
+                  </div>
+                </div>
+              }>
+                <ProfilePageLazy userId={user.id} currentUserId={user.id} />
+              </Suspense>
             </div>
           ) : (
             renderDashboard()
