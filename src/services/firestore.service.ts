@@ -78,6 +78,28 @@ export interface Submission {
   file_url?: string;
 }
 
+export interface UserProgress {
+  id: string;
+  user_id: string;
+  course_id: string;
+  module_id: string;
+  completed: boolean;
+  completed_at?: string;
+  progress_percentage: number; // 0-100
+  last_accessed_at: string;
+}
+
+export interface CourseProgress {
+  id: string;
+  user_id: string;
+  course_id: string;
+  total_modules: number;
+  completed_modules: number;
+  progress_percentage: number; // 0-100
+  last_accessed_at: string;
+  updated_at: string;
+}
+
 export interface Announcement {
   id: string;
   course_id: string;
@@ -279,6 +301,166 @@ export class FirestoreService {
       return modules;
     } catch (error) {
       console.error('Error getting course modules:', error);
+      return [];
+    }
+  }
+
+  // ========== USER PROGRESS ==========
+
+  static async markModuleComplete(userId: string, courseId: string, moduleId: string): Promise<void> {
+    try {
+      console.log('Marking module complete:', { userId, courseId, moduleId });
+      
+      // Check if progress already exists
+      const existingProgress = await this.getUserProgress(userId, courseId, moduleId);
+      
+      if (existingProgress) {
+        // Update existing progress
+        await updateDoc(doc(db, 'user_progress', existingProgress.id), {
+          completed: true,
+          completed_at: new Date().toISOString(),
+          progress_percentage: 100,
+          last_accessed_at: new Date().toISOString()
+        });
+      } else {
+        // Create new progress record
+        await addDoc(collection(db, 'user_progress'), {
+          user_id: userId,
+          course_id: courseId,
+          module_id: moduleId,
+          completed: true,
+          completed_at: new Date().toISOString(),
+          progress_percentage: 100,
+          last_accessed_at: new Date().toISOString()
+        });
+      }
+      
+      // Update course progress
+      await this.updateCourseProgress(userId, courseId);
+      
+      console.log('Module marked as complete');
+    } catch (error) {
+      console.error('Error marking module complete:', error);
+      throw error;
+    }
+  }
+
+  static async getUserProgress(userId: string, courseId: string, moduleId: string): Promise<UserProgress | null> {
+    try {
+      const q = query(
+        collection(db, 'user_progress'),
+        where('user_id', '==', userId),
+        where('course_id', '==', courseId),
+        where('module_id', '==', moduleId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) return null;
+      
+      const doc = querySnapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as UserProgress;
+    } catch (error) {
+      console.error('Error getting user progress:', error);
+      return null;
+    }
+  }
+
+  static async getUserProgressForCourse(userId: string, courseId: string): Promise<UserProgress[]> {
+    try {
+      const q = query(
+        collection(db, 'user_progress'),
+        where('user_id', '==', userId),
+        where('course_id', '==', courseId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProgress));
+    } catch (error) {
+      console.error('Error getting user progress for course:', error);
+      return [];
+    }
+  }
+
+  static async updateCourseProgress(userId: string, courseId: string): Promise<void> {
+    try {
+      // Get all modules for the course
+      const modules = await this.getCourseModules(courseId);
+      const totalModules = modules.length;
+      
+      // Get user progress for this course
+      const userProgress = await this.getUserProgressForCourse(userId, courseId);
+      const completedModules = userProgress.filter(p => p.completed).length;
+      
+      const progressPercentage = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
+      
+      // Check if course progress exists
+      const q = query(
+        collection(db, 'course_progress'),
+        where('user_id', '==', userId),
+        where('course_id', '==', courseId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        // Create new course progress
+        await addDoc(collection(db, 'course_progress'), {
+          user_id: userId,
+          course_id: courseId,
+          total_modules: totalModules,
+          completed_modules: completedModules,
+          progress_percentage: progressPercentage,
+          last_accessed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      } else {
+        // Update existing course progress
+        const docId = querySnapshot.docs[0].id;
+        await updateDoc(doc(db, 'course_progress', docId), {
+          total_modules: totalModules,
+          completed_modules: completedModules,
+          progress_percentage: progressPercentage,
+          last_accessed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      }
+      
+      console.log('Course progress updated:', { userId, courseId, progressPercentage });
+    } catch (error) {
+      console.error('Error updating course progress:', error);
+      throw error;
+    }
+  }
+
+  static async getCourseProgress(userId: string, courseId: string): Promise<CourseProgress | null> {
+    try {
+      const q = query(
+        collection(db, 'course_progress'),
+        where('user_id', '==', userId),
+        where('course_id', '==', courseId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) return null;
+      
+      const doc = querySnapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as CourseProgress;
+    } catch (error) {
+      console.error('Error getting course progress:', error);
+      return null;
+    }
+  }
+
+  static async getUserCourseProgress(userId: string): Promise<CourseProgress[]> {
+    try {
+      const q = query(
+        collection(db, 'course_progress'),
+        where('user_id', '==', userId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CourseProgress));
+    } catch (error) {
+      console.error('Error getting user course progress:', error);
       return [];
     }
   }

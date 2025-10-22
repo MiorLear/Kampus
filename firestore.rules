@@ -17,6 +17,26 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
     
+    // User progress: lectura para el usuario y admins, escritura para el usuario
+    match /user_progress/{progressId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.user_id
+      );
+      allow write: if request.auth != null && (
+        request.auth.uid == resource.data.user_id
+      );
+    }
+    
+    // Course progress: lectura para el usuario y admins, escritura para el usuario
+    match /course_progress/{progressId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.user_id
+      );
+      allow write: if request.auth != null && (
+        request.auth.uid == resource.data.user_id
+      );
+    }
+    
     // Reglas de producción (comentadas para desarrollo)
     /*
     // Función helper para verificar si es admin

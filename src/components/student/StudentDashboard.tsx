@@ -90,11 +90,17 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
               if (!course) return null;
               
               const teacher = await FirestoreService.getUser(course.teacher_id);
+              
+              // Load course progress
+              const courseProgress = await FirestoreService.getCourseProgress(user.id, course.id);
+              
               return {
                 ...course,
                 enrollment,
                 teacherName: teacher?.name || 'Unknown',
-                progress: enrollment.progress,
+                progress: courseProgress?.progress_percentage || 0,
+                completedModules: courseProgress?.completed_modules || 0,
+                totalModules: courseProgress?.total_modules || 0
               };
             })
           );
@@ -357,7 +363,13 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
                         <Badge>{course.progress}% Complete</Badge>
                       </div>
                       <p className="text-sm mb-3">{course.description}</p>
-                      <Progress value={course.progress} className="mb-3" />
+                      <div className="mb-3">
+                        <div className="flex justify-between text-sm text-muted-foreground mb-1">
+                          <span>{course.completedModules || 0} of {course.totalModules || 0} modules completed</span>
+                          <span>{course.progress}%</span>
+                        </div>
+                        <Progress value={course.progress} className="mb-2" />
+                      </div>
                       <div className="flex gap-2">
                         <Button onClick={() => handleViewCourse(course)}>
                           <Play className="mr-2 h-4 w-4" />

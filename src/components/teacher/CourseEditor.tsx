@@ -206,12 +206,49 @@ export function CourseEditor({ course, onBack }: CourseEditorProps) {
       case 'video':
         return (
           <div className="space-y-4">
-            {module.url && (
+            {module.url ? (
+              <div className="bg-black aspect-video rounded-lg overflow-hidden">
+                {module.url.includes('youtube.com') || module.url.includes('youtu.be') ? (
+                  // YouTube video
+                  <iframe
+                    src={module.url.includes('embed') ? module.url : 
+                          module.url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                    title={module.title}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : module.url.includes('vimeo.com') ? (
+                  // Vimeo video
+                  <iframe
+                    src={module.url.includes('player') ? module.url : 
+                          module.url.replace('vimeo.com/', 'player.vimeo.com/video/')}
+                    title={module.title}
+                    className="w-full h-full"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  // Generic video (MP4, WebM, etc.)
+                  <video
+                    controls
+                    className="w-full h-full"
+                    preload="metadata"
+                  >
+                    <source src={module.url} type="video/mp4" />
+                    <source src={module.url} type="video/webm" />
+                    <source src={module.url} type="video/ogg" />
+                    Your browser does not support the video tag.
+                  </video>
+                )}
+              </div>
+            ) : (
               <div className="bg-black aspect-video rounded-lg flex items-center justify-center">
                 <div className="text-center text-white">
                   <Video className="h-16 w-16 mx-auto mb-4" />
                   <p>Video: {module.title}</p>
                   <p className="text-sm opacity-75">{module.duration}</p>
+                  <p className="text-sm opacity-50 mt-2">No video URL provided</p>
                 </div>
               </div>
             )}
@@ -487,8 +524,17 @@ export function CourseEditor({ course, onBack }: CourseEditorProps) {
                   id="url"
                   value={newModule.url}
                   onChange={(e) => setNewModule({ ...newModule, url: e.target.value })}
-                  placeholder="Enter URL"
+                  placeholder={
+                    newModule.type === 'video' 
+                      ? "Enter video URL (YouTube, Vimeo, or direct video file URL)"
+                      : "Enter URL"
+                  }
                 />
+                {newModule.type === 'video' && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Supported: YouTube (youtube.com/watch?v=...), Vimeo (vimeo.com/...), or direct video files (.mp4, .webm, .ogg)
+                  </p>
+                )}
               </div>
             )}
 

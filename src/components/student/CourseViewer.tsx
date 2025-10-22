@@ -1,25 +1,26 @@
-  import React, { useState, useEffect } from 'react';
-  import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-  import { Button } from '../ui/button';
-  import { Progress } from '../ui/progress';
-  import { Badge } from '../ui/badge';
-  import { Separator } from '../ui/separator';
-  import { 
-    ArrowLeft, 
-    Play, 
-    FileText, 
-    ExternalLink, 
-    Download,
-    CheckCircle,
-    Circle,
-    Clock,
-    File,
-    Image,
-    Link,
-    Edit
-  } from 'lucide-react';
-  import { FirestoreService, CourseModule } from '../../services/firestore.service';
-  import { toast } from 'sonner';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
+import { Progress } from '../ui/progress';
+import { Badge } from '../ui/badge';
+import { Separator } from '../ui/separator';
+import { 
+  ArrowLeft, 
+  Play, 
+  FileText, 
+  ExternalLink, 
+  Download,
+  CheckCircle,
+  Circle,
+  Clock,
+  File,
+  Image,
+  Link,
+  Edit
+} from 'lucide-react';
+import { FirestoreService, CourseModule, UserProgress, CourseProgress } from '../../services/firestore.service';
+import { toast } from 'sonner';
+import { useAuth } from '../../hooks/useAuth';
   
   interface Course {
     id: string;
@@ -41,48 +42,79 @@
     onBack: () => void;
   }
   
-  export function CourseViewer({ course, onBack }: CourseViewerProps) {
-    const [modules, setModules] = useState<CourseModuleWithProgress[]>([]);
-    const [selectedModule, setSelectedModule] = useState<CourseModuleWithProgress | null>(null);
-    const [loading, setLoading] = useState(true);
+export function CourseViewer({ course, onBack }: CourseViewerProps) {
+  const { user } = useAuth();
+  const [modules, setModules] = useState<CourseModuleWithProgress[]>([]);
+  const [selectedModule, setSelectedModule] = useState<CourseModuleWithProgress | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(null);
 
-    useEffect(() => {
-      loadCourseModules();
-    }, [course.id]);
+  useEffect(() => {
+    loadCourseModules();
+  }, [course.id]);
 
-    const loadCourseModules = async () => {
-      try {
-        setLoading(true);
-        console.log('CourseViewer: Loading modules for course:', course.id);
-        const courseModules = await FirestoreService.getCourseModules(course.id);
-        console.log('CourseViewer: Loaded modules:', courseModules);
-        const modulesWithProgress = courseModules.map(module => ({
+  const loadCourseModules = async () => {
+    try {
+      setLoading(true);
+      console.log('CourseViewer: Loading modules for course:', course.id);
+      const courseModules = await FirestoreService.getCourseModules(course.id);
+      console.log('CourseViewer: Loaded modules:', courseModules);
+      
+      // Load user progress for this course
+      const userProgress = await FirestoreService.getUserProgressForCourse(user.id, course.id);
+      console.log('CourseViewer: Loaded user progress:', userProgress);
+      
+      // Load course progress
+      const progress = await FirestoreService.getCourseProgress(user.id, course.id);
+      setCourseProgress(progress);
+      console.log('CourseViewer: Loaded course progress:', progress);
+      
+      // Merge modules with progress data
+      const modulesWithProgress = courseModules.map(module => {
+        const progress = userProgress.find(p => p.module_id === module.id);
+        return {
           ...module,
-          completed: false // You might want to track this in a separate collection
-        }));
-        console.log('CourseViewer: Modules with progress:', modulesWithProgress);
-        setModules(modulesWithProgress);
-        if (modulesWithProgress.length > 0) {
-          setSelectedModule(modulesWithProgress[0]);
-        }
-      } catch (error) {
-        console.error('CourseViewer: Error loading course modules:', error);
-        toast.error('Failed to load course modules');
-      } finally {
-        setLoading(false);
+          completed: progress?.completed || false,
+          completed_at: progress?.completed_at
+        };
+      });
+      
+      console.log('CourseViewer: Modules with progress:', modulesWithProgress);
+      setModules(modulesWithProgress);
+      if (modulesWithProgress.length > 0) {
+        setSelectedModule(modulesWithProgress[0]);
       }
-    };
+    } catch (error) {
+      console.error('CourseViewer: Error loading course modules:', error);
+      toast.error('Failed to load course modules');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const markModuleComplete = (moduleId: string) => {
+  const markModuleComplete = async (moduleId: string) => {
+    try {
+      await FirestoreService.markModuleComplete(user.id, course.id, moduleId);
+      
+      // Update local state
       setModules(prev => prev.map(module => 
-        module.id === moduleId ? { ...module, completed: true } : module
+        module.id === moduleId ? { ...module, completed: true, completed_at: new Date().toISOString() } : module
       ));
+      
+      // Reload course progress
+      const progress = await FirestoreService.getCourseProgress(user.id, course.id);
+      setCourseProgress(progress);
+      
       toast.success('Module marked as complete!');
-    };
+    } catch (error) {
+      console.error('Error marking module complete:', error);
+      toast.error('Failed to mark module as complete');
+    }
+  };
   
-    const completedModules = modules.filter(m => m.completed).length;
-    const totalModules = modules.length;
-    const progressPercentage = (completedModules / totalModules) * 100;
+  const completedModules = modules.filter(m => m.completed).length;
+  const totalModules = modules.length;
+  const progressPercentage = courseProgress?.progress_percentage || (totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0);
   
     const renderModuleContent = () => {
       if (!selectedModule) return <div>No module selected</div>;
@@ -91,13 +123,52 @@
         case 'video':
           return (
             <div className="space-y-4">
-              <div className="bg-black aspect-video rounded-lg flex items-center justify-center">
-                <div className="text-center text-white">
-                  <Play className="h-16 w-16 mx-auto mb-4" />
-                  <p>Video: {selectedModule.title}</p>
-                  <p className="text-sm opacity-75">{selectedModule.duration}</p>
+              {selectedModule.url ? (
+                <div className="bg-black aspect-video rounded-lg overflow-hidden">
+                  {selectedModule.url.includes('youtube.com') || selectedModule.url.includes('youtu.be') ? (
+                    // YouTube video
+                    <iframe
+                      src={selectedModule.url.includes('embed') ? selectedModule.url : 
+                            selectedModule.url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                      title={selectedModule.title}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : selectedModule.url.includes('vimeo.com') ? (
+                    // Vimeo video
+                    <iframe
+                      src={selectedModule.url.includes('player') ? selectedModule.url : 
+                            selectedModule.url.replace('vimeo.com/', 'player.vimeo.com/video/')}
+                      title={selectedModule.title}
+                      className="w-full h-full"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    // Generic video (MP4, WebM, etc.)
+                    <video
+                      controls
+                      className="w-full h-full"
+                      preload="metadata"
+                    >
+                      <source src={selectedModule.url} type="video/mp4" />
+                      <source src={selectedModule.url} type="video/webm" />
+                      <source src={selectedModule.url} type="video/ogg" />
+                      Your browser does not support the video tag.
+                    </video>
+                  )}
                 </div>
-              </div>
+              ) : (
+                <div className="bg-black aspect-video rounded-lg flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <Play className="h-16 w-16 mx-auto mb-4" />
+                    <p>Video: {selectedModule.title}</p>
+                    <p className="text-sm opacity-75">{selectedModule.duration}</p>
+                    <p className="text-sm opacity-50 mt-2">No video URL provided</p>
+                  </div>
+                </div>
+              )}
               {selectedModule.content && (
                 <div className="prose max-w-none">
                   <div dangerouslySetInnerHTML={{ __html: selectedModule.content }} />
