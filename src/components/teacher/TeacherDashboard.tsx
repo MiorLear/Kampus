@@ -24,6 +24,7 @@ import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { AssignmentEditor } from '../admin/AssignmentEditor';
+import { CourseEditor } from './CourseEditor';
 
 interface UserProfile {
   id: string;
@@ -46,6 +47,8 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
   const [editingAssignment, setEditingAssignment] = useState<any>(null);
   const [showCourseDetails, setShowCourseDetails] = useState(false);
   const [selectedCourseDetails, setSelectedCourseDetails] = useState<any>(null);
+  const [showCourseEditor, setShowCourseEditor] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<any>(null);
   
   const { courses, loading: coursesLoading, refreshCourses } = useCourses(user.id);
   
@@ -401,6 +404,17 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
                             </Button>
                             <Button 
                               size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingCourse(course);
+                                setShowCourseEditor(true);
+                              }}
+                            >
+                              <Edit className="mr-1 h-3 w-3" />
+                              Edit Course
+                            </Button>
+                            <Button 
+                              size="sm"
                               onClick={() => handleViewCourse(course)}
                             >
                               View
@@ -565,6 +579,18 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
         courses={courses}
         onSave={handleAssignmentEditorSave}
       />
+
+      {/* Course Editor */}
+      {showCourseEditor && editingCourse && (
+        <CourseEditor
+          course={editingCourse}
+          onBack={() => {
+            setShowCourseEditor(false);
+            setEditingCourse(null);
+            loadData(); // Refresh data when returning
+          }}
+        />
+      )}
 
       {/* Course Details Modal */}
       <Dialog open={showCourseDetails} onOpenChange={setShowCourseDetails}>

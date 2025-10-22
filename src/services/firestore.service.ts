@@ -35,6 +35,20 @@ export interface Course {
   teacher_id: string;
   created_at: string;
   updated_at: string;
+  modules?: CourseModule[];
+}
+
+export interface CourseModule {
+  id: string;
+  title: string;
+  type: 'text' | 'video' | 'pdf' | 'image' | 'link' | 'assignment';
+  content?: string;
+  url?: string;
+  file_url?: string;
+  duration?: string;
+  order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Enrollment {
@@ -194,6 +208,79 @@ export class FirestoreService {
 
   static async deleteCourse(courseId: string): Promise<void> {
     await deleteDoc(doc(db, 'courses', courseId));
+  }
+
+  // ========== COURSE MODULES ==========
+
+  static async addCourseModule(courseId: string, module: Omit<CourseModule, 'id' | 'created_at' | 'updated_at'>): Promise<string> {
+    try {
+      console.log('FirestoreService.addCourseModule called with:', { courseId, module });
+      
+      const moduleData = {
+        ...module,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Module data to add to Firestore:', moduleData);
+      
+      const docRef = await addDoc(collection(db, 'course_modules'), {
+        course_id: courseId,
+        ...moduleData
+      });
+      
+      console.log('Module added to Firestore with ID:', docRef.id);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding course module:', error);
+      throw error;
+    }
+  }
+
+  static async updateCourseModule(moduleId: string, updates: Partial<CourseModule>): Promise<void> {
+    try {
+      await updateDoc(doc(db, 'course_modules', moduleId), {
+        ...updates,
+        updated_at: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error updating course module:', error);
+      throw error;
+    }
+  }
+
+  static async deleteCourseModule(moduleId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, 'course_modules', moduleId));
+    } catch (error) {
+      console.error('Error deleting course module:', error);
+      throw error;
+    }
+  }
+
+  static async getCourseModules(courseId: string): Promise<CourseModule[]> {
+    try {
+      console.log('FirestoreService.getCourseModules called for course:', courseId);
+      
+      // First try without orderBy to see if that's the issue
+      const q = query(
+        collection(db, 'course_modules'), 
+        where('course_id', '==', courseId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const modules = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CourseModule));
+      
+      // Sort by order locally instead of using orderBy
+      modules.sort((a, b) => (a.order || 0) - (b.order || 0));
+      
+      console.log('Retrieved modules from Firestore:', modules);
+      
+      return modules;
+    } catch (error) {
+      console.error('Error getting course modules:', error);
+      return [];
+    }
   }
 
   // ========== ENROLLMENTS ==========

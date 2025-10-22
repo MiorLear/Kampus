@@ -16,13 +16,18 @@ import {
   CheckCircle,
   Calendar,
   Loader2,
-  TrendingUp
+  TrendingUp,
+  Play,
+  ExternalLink,
+  Download,
+  Eye
 } from 'lucide-react';
 import { Input } from '../ui/input';
 import { useEnrollments, useCourses, useSubmissions, useAssignments } from '../../hooks/useFirestore';
-import { FirestoreService } from '../../services/firestore.service';
+import { FirestoreService, CourseModule } from '../../services/firestore.service';
 import { formatDate, getTimeRemaining, isOverdue, getGradeLetter } from '../../utils/firebase-helpers';
 import { toast } from 'sonner';
+import { CourseViewer } from './CourseViewer';
 
 interface UserProfile {
   id: string;
@@ -39,6 +44,8 @@ interface StudentDashboardProps {
 export function StudentDashboard({ user }: StudentDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [courseModules, setCourseModules] = useState<CourseModule[]>([]);
   
   const { enrollments, loading: enrollmentsLoading } = useEnrollments(user.id);
   const { courses: allCourses, loading: coursesLoading } = useCourses();
@@ -47,6 +54,28 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
   const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
   const [availableCourses, setAvailableCourses] = useState<any[]>([]);
   const [upcomingAssignments, setUpcomingAssignments] = useState<any[]>([]);
+
+  const loadCourseModules = async (courseId: string) => {
+    try {
+      console.log('StudentDashboard: Loading modules for course:', courseId);
+      const modules = await FirestoreService.getCourseModules(courseId);
+      console.log('StudentDashboard: Loaded modules:', modules);
+      setCourseModules(modules);
+    } catch (error) {
+      console.error('StudentDashboard: Error loading course modules:', error);
+      toast.error('Failed to load course modules');
+    }
+  };
+
+  const handleViewCourse = async (course: any) => {
+    setSelectedCourse(course);
+    await loadCourseModules(course.id);
+  };
+
+  const handleBackToDashboard = () => {
+    setSelectedCourse(null);
+    setCourseModules([]);
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -150,6 +179,22 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
     completedAssignments: submissions.filter(s => s.grade !== undefined).length,
     upcomingDue: upcomingAssignments.length,
   };
+
+  if (selectedCourse) {
+    return (
+      <CourseViewer 
+        course={{
+          ...selectedCourse,
+          instructor: 'Teacher', // You might want to fetch the actual teacher name
+          progress: 0, // You might want to calculate actual progress
+          status: 'active',
+          duration: 'Self-paced',
+          modules: courseModules.length
+        }}
+        onBack={handleBackToDashboard}
+      />
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -314,8 +359,14 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
                       <p className="text-sm mb-3">{course.description}</p>
                       <Progress value={course.progress} className="mb-3" />
                       <div className="flex gap-2">
-                        <Button>Continue Learning</Button>
-                        <Button variant="outline">View Details</Button>
+                        <Button onClick={() => handleViewCourse(course)}>
+                          <Play className="mr-2 h-4 w-4" />
+                          View Course
+                        </Button>
+                        <Button variant="outline">
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </Button>
                       </div>
                     </div>
                   ))}
