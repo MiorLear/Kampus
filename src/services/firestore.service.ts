@@ -87,6 +87,10 @@ export interface UserProgress {
   completed_at?: string;
   progress_percentage: number; // 0-100
   last_accessed_at: string;
+  time_spent?: number; // Tiempo en segundos
+  video_time_watched?: number; // Para videos: tiempo visto en segundos
+  video_duration?: number; // Duración total del video en segundos
+  times_accessed?: number; // Número de veces que se ha accedido
 }
 
 export interface CourseProgress {
@@ -307,6 +311,117 @@ export class FirestoreService {
 
   // ========== USER PROGRESS ==========
 
+  /**
+   * Guardar o actualizar progreso de un módulo (acceso automático)
+   * Se llama cuando el estudiante accede a un módulo
+   */
+  static async saveModuleAccess(
+    userId: string, 
+    courseId: string, 
+    moduleId: string,
+    progressPercentage?: number
+  ): Promise<void> {
+    try {
+      const existingProgress = await this.getUserProgress(userId, courseId, moduleId);
+      const now = new Date().toISOString();
+      
+      if (existingProgress) {
+        // Actualizar progreso existente
+        await updateDoc(doc(db, 'user_progress', existingProgress.id), {
+          last_accessed_at: now,
+          times_accessed: (existingProgress.times_accessed || 0) + 1,
+          ...(progressPercentage !== undefined && {
+            progress_percentage: Math.max(existingProgress.progress_percentage || 0, progressPercentage)
+          })
+        });
+      } else {
+        // Crear nuevo registro de progreso
+        await addDoc(collection(db, 'user_progress'), {
+          user_id: userId,
+          course_id: courseId,
+          module_id: moduleId,
+          completed: false,
+          progress_percentage: progressPercentage || 0,
+          last_accessed_at: now,
+          times_accessed: 1
+        });
+      }
+      
+      // Actualizar progreso del curso (sin marcar como completo)
+      await this.updateCourseProgress(userId, courseId);
+    } catch (error) {
+      console.error('Error saving module access:', error);
+      // No lanzar error para no interrumpir la experiencia del usuario
+    }
+  }
+
+  /**
+   * Guardar progreso parcial (especialmente para videos)
+   */
+  static async saveModuleProgress(
+    userId: string,
+    courseId: string,
+    moduleId: string,
+    progressData: {
+      progress_percentage?: number;
+      video_time_watched?: number;
+      video_duration?: number;
+      time_spent?: number;
+    }
+  ): Promise<void> {
+    try {
+      const existingProgress = await this.getUserProgress(userId, courseId, moduleId);
+      const now = new Date().toISOString();
+      
+      if (existingProgress) {
+        // Actualizar progreso existente
+        const updates: any = {
+          last_accessed_at: now,
+          ...progressData
+        };
+        
+        // Si se proporciona tiempo de video, calcular porcentaje automáticamente
+        if (progressData.video_time_watched && progressData.video_duration) {
+          const calculatedPercentage = Math.min(
+            100,
+            Math.round((progressData.video_time_watched / progressData.video_duration) * 100)
+          );
+          updates.progress_percentage = Math.max(
+            existingProgress.progress_percentage || 0,
+            calculatedPercentage
+          );
+        }
+        
+        await updateDoc(doc(db, 'user_progress', existingProgress.id), updates);
+      } else {
+        // Crear nuevo registro
+        const progressPercentage = progressData.progress_percentage || 
+          (progressData.video_time_watched && progressData.video_duration
+            ? Math.round((progressData.video_time_watched / progressData.video_duration) * 100)
+            : 0);
+        
+        await addDoc(collection(db, 'user_progress'), {
+          user_id: userId,
+          course_id: courseId,
+          module_id: moduleId,
+          completed: false,
+          progress_percentage: progressPercentage,
+          last_accessed_at: now,
+          times_accessed: 1,
+          ...progressData
+        });
+      }
+      
+      // Actualizar progreso del curso
+      await this.updateCourseProgress(userId, courseId);
+    } catch (error) {
+      console.error('Error saving module progress:', error);
+    }
+  }
+
+  /**
+   * Marcar módulo como completado
+   */
   static async markModuleComplete(userId: string, courseId: string, moduleId: string): Promise<void> {
     try {
       console.log('Marking module complete:', { userId, courseId, moduleId });
@@ -331,7 +446,8 @@ export class FirestoreService {
           completed: true,
           completed_at: new Date().toISOString(),
           progress_percentage: 100,
-          last_accessed_at: new Date().toISOString()
+          last_accessed_at: new Date().toISOString(),
+          times_accessed: 1
         });
       }
       

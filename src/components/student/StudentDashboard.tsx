@@ -24,7 +24,8 @@ import {
 } from 'lucide-react';
 import { Input } from '../ui/input';
 import { useEnrollments, useCourses, useSubmissions, useAssignments } from '../../hooks/useFirestore';
-import { FirestoreService, CourseModule } from '../../services/firestore.service';
+import { CourseModule } from '../../services/firestore.service';
+import { ApiService } from '../../services/api.service';
 import { formatDate, getTimeRemaining, isOverdue, getGradeLetter } from '../../utils/firebase-helpers';
 import { toast } from 'sonner';
 import { CourseViewer } from './CourseViewer';
@@ -58,7 +59,7 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
   const loadCourseModules = async (courseId: string) => {
     try {
       console.log('StudentDashboard: Loading modules for course:', courseId);
-      const modules = await FirestoreService.getCourseModules(courseId);
+      const modules = await ApiService.getCourseModules(courseId);
       console.log('StudentDashboard: Loaded modules:', modules);
       setCourseModules(modules);
     } catch (error) {
@@ -89,10 +90,10 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
               const course = allCourses.find(c => c.id === enrollment.course_id);
               if (!course) return null;
               
-              const teacher = await FirestoreService.getUser(course.teacher_id);
+              const teacher = await ApiService.getUser(course.teacher_id);
               
               // Load course progress
-              const courseProgress = await FirestoreService.getCourseProgress(user.id, course.id);
+              const courseProgress = await ApiService.getCourseProgress(user.id, course.id);
               
               return {
                 ...course,
@@ -115,7 +116,7 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
           allCourses
             .filter(c => !enrolledCourseIds.includes(c.id))
             .map(async (course) => {
-              const teacher = await FirestoreService.getUser(course.teacher_id);
+              const teacher = await ApiService.getUser(course.teacher_id);
               return {
                 ...course,
                 teacherName: teacher?.name || 'Unknown',
@@ -153,7 +154,7 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
       const course = allCourses.find(c => c.id === courseId);
       if (!course) return;
 
-      await FirestoreService.enrollStudent({
+      await ApiService.enrollStudent({
         student_id: user.id,
         course_id: courseId,
         progress: 0,

@@ -10,6 +10,7 @@ import {
   ActivityLog,
   User,
 } from '../services/firestore.service';
+import { ApiService } from '../services/api.service';
 
 // ========== COURSES ==========
 
@@ -22,12 +23,11 @@ export function useCourses(teacherId?: string) {
     const fetchCourses = async () => {
       try {
         setLoading(true);
-        const data = teacherId
-          ? await FirestoreService.getCoursesByTeacher(teacherId)
-          : await FirestoreService.getAllCourses();
+        const data = await ApiService.getAllCourses(teacherId);
         setCourses(data);
       } catch (err: any) {
-        setError(err.message);
+        console.error('Error loading courses:', err);
+        setError(err.message || 'Failed to load courses');
       } finally {
         setLoading(false);
       }
@@ -38,12 +38,11 @@ export function useCourses(teacherId?: string) {
 
   const refreshCourses = async () => {
     try {
-      const data = teacherId
-        ? await FirestoreService.getCoursesByTeacher(teacherId)
-        : await FirestoreService.getAllCourses();
+      const data = await ApiService.getAllCourses(teacherId);
       setCourses(data);
     } catch (err: any) {
-      setError(err.message);
+      console.error('Error refreshing courses:', err);
+      setError(err.message || 'Failed to refresh courses');
     }
   };
 
@@ -64,10 +63,11 @@ export function useCourse(courseId: string | null) {
     const fetchCourse = async () => {
       try {
         setLoading(true);
-        const data = await FirestoreService.getCourse(courseId);
+        const data = await ApiService.getCourse(courseId);
         setCourse(data);
       } catch (err: any) {
-        setError(err.message);
+        console.error('Error loading course:', err);
+        setError(err.message || 'Failed to load course');
       } finally {
         setLoading(false);
       }
@@ -79,10 +79,11 @@ export function useCourse(courseId: string | null) {
   const refreshCourse = async () => {
     if (!courseId) return;
     try {
-      const data = await FirestoreService.getCourse(courseId);
+      const data = await ApiService.getCourse(courseId);
       setCourse(data);
     } catch (err: any) {
-      setError(err.message);
+      console.error('Error refreshing course:', err);
+      setError(err.message || 'Failed to refresh course');
     }
   };
 
@@ -102,15 +103,16 @@ export function useEnrollments(studentId?: string, courseId?: string) {
         setLoading(true);
         let data: Enrollment[];
         if (studentId) {
-          data = await FirestoreService.getEnrollmentsByStudent(studentId);
+          data = await ApiService.getEnrollmentsByStudent(studentId);
         } else if (courseId) {
-          data = await FirestoreService.getEnrollmentsByCourse(courseId);
+          data = await ApiService.getEnrollmentsByCourse(courseId);
         } else {
           data = [];
         }
         setEnrollments(data);
       } catch (err: any) {
-        setError(err.message);
+        console.error('Error loading enrollments:', err);
+        setError(err.message || 'Failed to load enrollments');
       } finally {
         setLoading(false);
       }
@@ -123,15 +125,16 @@ export function useEnrollments(studentId?: string, courseId?: string) {
     try {
       let data: Enrollment[];
       if (studentId) {
-        data = await FirestoreService.getEnrollmentsByStudent(studentId);
+        data = await ApiService.getEnrollmentsByStudent(studentId);
       } else if (courseId) {
-        data = await FirestoreService.getEnrollmentsByCourse(courseId);
+        data = await ApiService.getEnrollmentsByCourse(courseId);
       } else {
         data = [];
       }
       setEnrollments(data);
     } catch (err: any) {
-      setError(err.message);
+      console.error('Error refreshing enrollments:', err);
+      setError(err.message || 'Failed to refresh enrollments');
     }
   };
 

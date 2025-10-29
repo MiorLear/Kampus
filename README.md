@@ -54,26 +54,42 @@ Kampus utiliza un sistema de perfiles robusto con tres tipos de usuarios:
 ### Prerequisites
 - Node.js (v18 or higher)
 - Firebase project
+- npm o yarn
 
-### Installation
+### 🚀 Inicio Rápido
 
-1. Clone the repository:
+#### Opción 1: Solo Frontend (Modo Legacy - Firestore Directo)
+
+Si quieres usar el sistema anterior sin backend:
+
 ```bash
-git clone <repository-url>
-cd kampus
-```
-
-2. Install dependencies:
-```bash
+# 1. Instalar dependencias
 npm install
+
+# 2. Configurar Firebase (.env en la raíz)
+# Ver sección "Firebase Setup" más abajo
+
+# 3. Iniciar servidor
+npm run dev
+
+# 4. Abrir http://localhost:5173
 ```
 
-3. Set up Firebase:
-   - Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
-   - Enable Authentication (Email/Password and Google)
-   - Enable Firestore Database
-   - Create a `.env` file in the root directory with your Firebase config:
+#### Opción 2: Full Stack (Backend + Frontend) - RECOMENDADO
 
+1. **Instalar dependencias:**
+```bash
+# Instalar todo (frontend + backend)
+npm run install:all
+
+# O manualmente:
+npm install                    # Frontend
+cd backend && npm install      # Backend
+```
+
+2. **Configurar Variables de Entorno:**
+
+**Frontend** - Crear `.env` en la raíz:
 ```env
 VITE_FIREBASE_API_KEY=your_api_key_here
 VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
@@ -81,14 +97,65 @@ VITE_FIREBASE_PROJECT_ID=your_project_id
 VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
+VITE_API_URL=http://localhost:5000/api
 ```
 
-4. Start the development server:
+**Backend** - Crear `backend/.env`:
+```bash
+cd backend
+cp .env.example .env
+```
+
+Editar `backend/.env`:
+```env
+PORT=5000
+FRONTEND_URL=http://localhost:5173
+NODE_ENV=development
+```
+
+3. **Configurar Firebase Admin SDK:**
+
+Ve a [Firebase Console](https://console.firebase.google.com/) → Project Settings → Service Accounts
+- Descarga la clave privada
+- Guárdala como `backend/firebase-service-account.json`
+
+O usa Application Default Credentials:
+```bash
+gcloud auth application-default login
+```
+
+4. **Iniciar Servidores:**
+
+**Opción A: Ambos en una sola terminal (requiere `concurrently`):**
+```bash
+npm run dev:all
+```
+
+**Opción B: En terminales separadas:**
+
+Terminal 1 (Backend):
+```bash
+cd backend
+npm run dev
+```
+
+Terminal 2 (Frontend):
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:5173](http://localhost:5173) in your browser
+5. **Verificar:**
+- Backend: http://localhost:5000/health
+- Frontend: http://localhost:5173
+
+> 📖 **Guía detallada**: Ver [INSTRUCCIONES_INICIO.md](./INSTRUCCIONES_INICIO.md) para más detalles
+
+### Firebase Setup
+
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+2. Enable Authentication (Email/Password and Google)
+3. Enable Firestore Database
+4. Add your Firebase config to `.env` (see above)
 
 ### Poblar Base de Datos con Usuarios de Ejemplo
 
@@ -121,13 +188,25 @@ Ver [PERFILES_DE_USUARIO.md](./PERFILES_DE_USUARIO.md) para detalles de cada usu
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS
-- **UI Components**: Radix UI, Lucide React Icons
+### Frontend
+- **Framework**: React 18, TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: Radix UI, Shadcn/ui, Lucide React Icons
+- **Forms**: React Hook Form + Zod validation
+- **HTTP Client**: Axios
+- **Build Tool**: Vite
+
+### Backend
+- **Runtime**: Node.js
+- **Framework**: Express.js
+- **Language**: TypeScript
+- **Database**: Firebase Admin SDK → Firestore
+- **Authentication**: Firebase Admin Auth
+
+### Infrastructure
 - **Authentication**: Firebase Auth
 - **Database**: Firestore
-- **Form Handling**: React Hook Form + Zod validation
-- **Routing**: React Router v7
-- **Build Tool**: Vite
+- **Storage**: Firebase Storage
 
 ## Project Structure
 
