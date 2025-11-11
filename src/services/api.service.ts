@@ -108,6 +108,19 @@ export class ApiService {
     }
   }
 
+  static async createModule(courseId: string, module: any): Promise<string> {
+    const response = await apiClient.post(API_ENDPOINTS.COURSE_MODULES(courseId), module);
+    return response.data.id;
+  }
+
+  static async updateModule(moduleId: string, updates: any): Promise<void> {
+    await apiClient.put(API_ENDPOINTS.MODULE_BY_ID(moduleId), updates);
+  }
+
+  static async deleteModule(moduleId: string): Promise<void> {
+    await apiClient.delete(API_ENDPOINTS.MODULE_BY_ID(moduleId));
+  }
+
   // ========== PROGRESS ==========
   
   static async saveModuleAccess(
@@ -116,8 +129,9 @@ export class ApiService {
     moduleId: string,
     progressPercentage?: number
   ): Promise<void> {
-    // userId no se envía, viene del token de autenticación
+    // TODO: Get userId from token once auth middleware is implemented
     await apiClient.post(API_ENDPOINTS.PROGRESS_ACCESS, {
+      userId,
       courseId,
       moduleId,
       progressPercentage
@@ -135,8 +149,9 @@ export class ApiService {
       time_spent?: number;
     }
   ): Promise<void> {
-    // userId no se envía, viene del token de autenticación
+    // TODO: Get userId from token once auth middleware is implemented
     await apiClient.post(API_ENDPOINTS.PROGRESS_SAVE, {
+      userId,
       courseId,
       moduleId,
       progressData
@@ -148,8 +163,9 @@ export class ApiService {
     courseId: string,
     moduleId: string
   ): Promise<void> {
-    // userId no se envía, viene del token de autenticación
+    // TODO: Get userId from token once auth middleware is implemented
     await apiClient.post(API_ENDPOINTS.PROGRESS_COMPLETE, {
+      userId,
       courseId,
       moduleId
     });
@@ -160,8 +176,10 @@ export class ApiService {
     courseId: string
   ): Promise<any[]> {
     try {
-      // userId no se envía en la URL, viene del token
-      const response = await apiClient.get(API_ENDPOINTS.PROGRESS_COURSE_MODULES(courseId));
+      // TODO: Get userId from token once auth middleware is implemented
+      const response = await apiClient.get(API_ENDPOINTS.PROGRESS_COURSE_MODULES(courseId), {
+        params: { userId }
+      });
       return response.data;
     } catch (error) {
       throw error;
@@ -173,8 +191,10 @@ export class ApiService {
     courseId: string
   ): Promise<any | null> {
     try {
-      // userId no se envía en la URL, viene del token
-      const response = await apiClient.get(API_ENDPOINTS.PROGRESS_COURSE_SUMMARY(courseId));
+      // TODO: Get userId from token once auth middleware is implemented
+      const response = await apiClient.get(API_ENDPOINTS.PROGRESS_COURSE_SUMMARY(courseId), {
+        params: { userId }
+      });
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -225,11 +245,228 @@ export class ApiService {
     await apiClient.delete(API_ENDPOINTS.ENROLLMENT_BY_ID(enrollmentId));
   }
 
-  // ========== FUTURO: Agregar más métodos aquí ==========
-  // - Assignments
-  // - Submissions
-  // - Analytics
-  // etc.
+  // ========== ASSIGNMENTS ==========
+  
+  static async getAssignmentsByCourse(courseId: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.ASSIGNMENTS_BY_COURSE(courseId));
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getAssignment(assignmentId: string): Promise<any | null> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.ASSIGNMENT_BY_ID(assignmentId));
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  static async createAssignment(assignment: any): Promise<string> {
+    const response = await apiClient.post(API_ENDPOINTS.ASSIGNMENTS, assignment);
+    return response.data.id;
+  }
+
+  static async updateAssignment(assignmentId: string, updates: any): Promise<void> {
+    await apiClient.put(API_ENDPOINTS.ASSIGNMENT_BY_ID(assignmentId), updates);
+  }
+
+  static async deleteAssignment(assignmentId: string): Promise<void> {
+    await apiClient.delete(API_ENDPOINTS.ASSIGNMENT_BY_ID(assignmentId));
+  }
+
+  // ========== SUBMISSIONS ==========
+  
+  static async getSubmissionsByAssignment(assignmentId: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.SUBMISSIONS_BY_ASSIGNMENT(assignmentId));
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getSubmissionsByStudent(studentId: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.SUBMISSIONS_BY_STUDENT(studentId));
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getSubmission(submissionId: string): Promise<any | null> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.SUBMISSION_BY_ID(submissionId));
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  static async createSubmission(submission: any): Promise<string> {
+    const response = await apiClient.post(API_ENDPOINTS.SUBMISSIONS, submission);
+    return response.data.id;
+  }
+
+  static async updateSubmission(submissionId: string, updates: any): Promise<void> {
+    await apiClient.put(API_ENDPOINTS.SUBMISSION_BY_ID(submissionId), updates);
+  }
+
+  static async deleteSubmission(submissionId: string): Promise<void> {
+    await apiClient.delete(API_ENDPOINTS.SUBMISSION_BY_ID(submissionId));
+  }
+
+  // ========== ANNOUNCEMENTS ==========
+  
+  static async getAnnouncementsByCourse(courseId: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get(`/announcements?course_id=${courseId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getAnnouncement(announcementId: string): Promise<any | null> {
+    try {
+      const response = await apiClient.get(`/announcements/${announcementId}`);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  static async createAnnouncement(announcement: any): Promise<string> {
+    const response = await apiClient.post('/announcements', announcement);
+    return response.data.id;
+  }
+
+  static async updateAnnouncement(announcementId: string, updates: any): Promise<void> {
+    await apiClient.put(`/announcements/${announcementId}`, updates);
+  }
+
+  static async deleteAnnouncement(announcementId: string): Promise<void> {
+    await apiClient.delete(`/announcements/${announcementId}`);
+  }
+
+  // ========== MESSAGES ==========
+  
+  static async getMessagesBetweenUsers(userId: string, otherUserId: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get(`/messages?user_id=${userId}&other_user_id=${otherUserId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getReceivedMessages(userId: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get(`/messages?recipient_id=${userId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getSentMessages(userId: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get(`/messages?sender_id=${userId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async markMessageAsRead(messageId: string): Promise<void> {
+    await apiClient.put(`/messages/${messageId}`, { read: true });
+  }
+
+  static async getAllActivityLogs(limit?: number): Promise<any[]> {
+    try {
+      const params = limit ? { limit } : {};
+      const response = await apiClient.get(`/activity-logs`, { params });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getMessage(messageId: string): Promise<any | null> {
+    try {
+      const response = await apiClient.get(`/messages/${messageId}`);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  static async createMessage(message: any): Promise<string> {
+    const response = await apiClient.post('/messages', message);
+    return response.data.id;
+  }
+
+  static async updateMessage(messageId: string, updates: any): Promise<void> {
+    await apiClient.put(`/messages/${messageId}`, updates);
+  }
+
+  static async deleteMessage(messageId: string): Promise<void> {
+    await apiClient.delete(`/messages/${messageId}`);
+  }
+
+  // ========== ANALYTICS ==========
+  
+  static async getStudentAnalytics(studentId: string): Promise<any> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.ANALYTICS_STUDENT(studentId));
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getTeacherAnalytics(teacherId: string): Promise<any> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.ANALYTICS_TEACHER(teacherId));
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getCourseAnalytics(courseId: string): Promise<any> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.ANALYTICS_COURSE(courseId));
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getSystemAnalytics(): Promise<any> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.ANALYTICS_SYSTEM);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 

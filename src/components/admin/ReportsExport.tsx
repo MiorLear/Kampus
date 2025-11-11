@@ -143,7 +143,7 @@ export function ReportsExport({ users, courses }: ReportsExportProps) {
       const allEnrollments = [];
       
       for (const course of courses) {
-        const enrollments = await FirestoreService.getEnrollmentsByCourse(course.id);
+        const enrollments = await ApiService.getEnrollmentsByCourse(course.id);
         for (const enrollment of enrollments) {
           const student = users.find(u => u.id === enrollment.student_id);
           const teacher = users.find(u => u.id === course.teacher_id);
@@ -180,7 +180,7 @@ export function ReportsExport({ users, courses }: ReportsExportProps) {
 
   const exportActivityReport = async () => {
     try {
-      const activityLogs = await FirestoreService.getAllActivityLogs(1000);
+      const activityLogs = await ApiService.getAllActivityLogs(1000);
       const { start, end } = getDateRange();
       
       let filteredLogs = activityLogs;

@@ -36,7 +36,7 @@ import {
 } from '../ui/dropdown-menu';
 import { Search, Eye, Trash2, MoreVertical, Users, FileText } from 'lucide-react';
 import { Course, User } from '../../services/firestore.service';
-import { FirestoreService } from '../../services/firestore.service';
+import { ApiService } from '../../services/api.service';
 import { toast } from 'sonner';
 import { formatDate } from '../../utils/firebase-helpers';
 import { Progress } from '../ui/progress';
@@ -58,7 +58,7 @@ export function CourseManagement({ courses, users }: CourseManagementProps) {
     const loadStats = async () => {
       const stats: Record<string, any> = {};
       for (const course of courses) {
-        const analytics = await FirestoreService.getCourseAnalytics(course.id);
+        const analytics = await ApiService.getCourseAnalytics(course.id);
         stats[course.id] = analytics;
       }
       setCourseStats(stats);
@@ -82,7 +82,7 @@ export function CourseManagement({ courses, users }: CourseManagementProps) {
     if (!selectedCourse) return;
 
     try {
-      await FirestoreService.deleteCourse(selectedCourse.id);
+      await ApiService.deleteCourse(selectedCourse.id);
       toast.success('Course deleted successfully');
       setShowDeleteDialog(false);
       window.location.reload();

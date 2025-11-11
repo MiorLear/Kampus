@@ -20,7 +20,7 @@ import {
 } from '../ui/select';
 import { Search, TrendingUp, UserX } from 'lucide-react';
 import { Course, User, Enrollment } from '../../services/firestore.service';
-import { FirestoreService } from '../../services/firestore.service';
+import { ApiService } from '../../services/api.service';
 import { formatDate } from '../../utils/firebase-helpers';
 import { Progress } from '../ui/progress';
 import { toast } from 'sonner';
@@ -46,7 +46,7 @@ export function EnrollmentManagement({ courses, users }: EnrollmentManagementPro
       const allEnrollments: Enrollment[] = [];
       
       for (const course of courses) {
-        const courseEnrollments = await FirestoreService.getEnrollmentsByCourse(course.id);
+        const courseEnrollments = await ApiService.getEnrollmentsByCourse(course.id);
         allEnrollments.push(...courseEnrollments);
       }
       
@@ -84,7 +84,7 @@ export function EnrollmentManagement({ courses, users }: EnrollmentManagementPro
 
   const handleUnenroll = async (enrollmentId: string) => {
     try {
-      await FirestoreService.deleteEnrollment(enrollmentId);
+      await ApiService.unenrollStudent(enrollmentId);
       toast.success('Student unenrolled successfully');
       loadEnrollments();
     } catch (error) {

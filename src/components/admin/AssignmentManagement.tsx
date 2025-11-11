@@ -37,7 +37,7 @@ import {
 } from '../ui/dropdown-menu';
 import { Search, Eye, Trash2, MoreVertical, FileText, Users, Calendar, Edit, Plus } from 'lucide-react';
 import { Assignment, Course, User } from '../../services/firestore.service';
-import { FirestoreService } from '../../services/firestore.service';
+import { ApiService } from '../../services/api.service';
 import { toast } from 'sonner';
 import { formatDate } from '../../utils/firebase-helpers';
 import { AssignmentEditor } from './AssignmentEditor';
@@ -68,7 +68,7 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
       const allAssignments: Assignment[] = [];
       
       for (const course of courses) {
-        const courseAssignments = await FirestoreService.getAssignmentsByCourse(course.id);
+        const courseAssignments = await ApiService.getAssignmentsByCourse(course.id);
         allAssignments.push(...courseAssignments);
       }
       
@@ -125,7 +125,7 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
     if (!selectedAssignment) return;
 
     try {
-      await FirestoreService.deleteAssignment(selectedAssignment.id);
+      await ApiService.deleteAssignment(selectedAssignment.id);
       toast.success('Assignment deleted successfully');
       setShowDeleteDialog(false);
       loadAssignments();

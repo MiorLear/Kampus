@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { auth } from '../config/firebase';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
  * Cliente HTTP configurado para comunicarse con el backend
@@ -22,15 +22,25 @@ apiClient.interceptors.request.use(
     try {
       const user = auth.currentUser;
       if (user) {
-        const token = await user.getIdToken();
-        config.headers.Authorization = `Bearer ${token}`;
+        try {
+          const token = await user.getIdToken();
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        } catch (tokenError) {
+          console.warn('Error getting auth token, proceeding without token:', tokenError);
+          // Continue without token if there's an error getting it
+        }
       }
     } catch (error) {
-      console.error('Error getting auth token:', error);
+      console.error('Error in auth interceptor:', error);
+      // Continue with the request even if there's an error
     }
+    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
   (error) => {
+    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -68,6 +78,19 @@ apiClient.interceptors.response.use(
     } else if (error.request) {
       // Request fue enviado pero no hubo respuesta
       console.error('Network Error: No response from server');
+      console.error('Request details:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL,
+        timeout: error.config?.timeout,
+      });
+      // Check if it's a CORS error
+      if (error.message.includes('CORS') || error.code === 'ERR_NETWORK') {
+        console.error('Possible CORS issue. Check:', {
+          backendUrl: API_BASE_URL,
+          frontendUrl: window.location.origin,
+        });
+      }
     } else {
       // Error al configurar el request
       console.error('Request Error:', error.message);

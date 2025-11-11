@@ -282,9 +282,9 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
                       allowFullScreen
                       onLoad={() => {
                         if (selectedModule && user && course.id) {
-                          FirestoreService.saveModuleProgress(user.id, course.id, selectedModule.id, {
+                          ApiService.saveModuleProgress(user.id, course.id, selectedModule.id, {
                             progress_percentage: 5
-                          });
+                          }).catch(err => console.error('Error saving video progress:', err));
                         }
                       }}
                     />

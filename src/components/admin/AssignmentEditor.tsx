@@ -20,7 +20,7 @@ import {
 } from '../ui/select';
 import { Loader2, Calendar } from 'lucide-react';
 import { Assignment, Course } from '../../services/firestore.service';
-import { FirestoreService } from '../../services/firestore.service';
+import { ApiService } from '../../services/api.service';
 import { toast } from 'sonner';
 
 interface AssignmentEditorProps {
@@ -104,11 +104,11 @@ export function AssignmentEditor({
 
       if (assignment) {
         // Update existing assignment
-        await FirestoreService.updateAssignment(assignment.id, assignmentData);
+        await ApiService.updateAssignment(assignment.id, assignmentData);
         toast.success('Assignment updated successfully!');
       } else {
         // Create new assignment
-        await FirestoreService.createAssignment(assignmentData);
+        await ApiService.createAssignment(assignmentData);
         toast.success('Assignment created successfully!');
       }
 

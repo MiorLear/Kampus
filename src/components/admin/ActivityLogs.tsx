@@ -43,7 +43,7 @@ export function ActivityLogs({ users }: ActivityLogsProps) {
   const loadActivityLogs = async () => {
     try {
       setLoading(true);
-      const activityLogs = await FirestoreService.getAllActivityLogs(100);
+      const activityLogs = await ApiService.getAllActivityLogs(100);
       setLogs(activityLogs);
     } catch (error) {
       console.error('Error loading activity logs:', error);

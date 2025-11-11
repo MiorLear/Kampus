@@ -39,7 +39,8 @@ import {
   AlertDialogTitle,
 } from '../ui/alert-dialog';
 import { Search, UserPlus, Edit, Trash2, MoreVertical } from 'lucide-react';
-import { FirestoreService, User } from '../../services/firestore.service';
+import { User } from '../../services/firestore.service';
+import { ApiService } from '../../services/api.service';
 import { toast } from 'sonner';
 import { formatDate } from '../../utils/firebase-helpers';
 import {
@@ -84,7 +85,7 @@ export function UserManagement({ users }: UserManagementProps) {
     if (!selectedUser) return;
 
     try {
-      await FirestoreService.updateUser(selectedUser.id, editedUser);
+      await ApiService.updateUser(selectedUser.id, editedUser);
       toast.success('User updated successfully');
       setShowEditDialog(false);
       window.location.reload();
@@ -98,7 +99,7 @@ export function UserManagement({ users }: UserManagementProps) {
     if (!selectedUser) return;
 
     try {
-      await FirestoreService.deleteUser(selectedUser.id);
+      await ApiService.deleteUser(selectedUser.id);
       toast.success('User deleted successfully');
       setShowDeleteDialog(false);
       window.location.reload();

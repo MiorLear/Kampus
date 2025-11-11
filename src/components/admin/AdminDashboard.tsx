@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import React, { useState } from 'react';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import {
   DropdownMenu,
@@ -12,7 +10,6 @@ import {
 import { 
   Users, 
   BookOpen, 
-  TrendingUp, 
   UserCheck,
   Settings,
   BarChart3,
@@ -33,8 +30,7 @@ import { AssignmentManagement } from './AssignmentManagement';
 import { ActivityLogs } from './ActivityLogs';
 import { MessageManagement } from './MessageManagement';
 import { ReportsExport } from './ReportsExport';
-import { useUsers, useCourses, useAnalytics } from '../../hooks/useFirestore';
-import { FirestoreService } from '../../services/firestore.service';
+import { useUsers, useCourses } from '../../hooks/useFirestore';
 
 interface UserProfile {
   id: string;
@@ -50,30 +46,11 @@ interface AdminDashboardProps {
 
 export function AdminDashboard({ user }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview');
-  const [enrollmentsCount, setEnrollmentsCount] = useState(0);
-  const [assignmentsCount, setAssignmentsCount] = useState(0);
   
   const { users, loading: usersLoading } = useUsers();
   const { courses, loading: coursesLoading } = useCourses();
-  const { analytics, loading: analyticsLoading } = useAnalytics('system');
 
-  useEffect(() => {
-    // Load additional stats
-    const loadStats = async () => {
-      try {
-        const stats = await FirestoreService.getSystemAnalytics();
-        if (stats) {
-          setEnrollmentsCount(stats.totalEnrollments);
-          setAssignmentsCount(stats.totalAssignments);
-        }
-      } catch (error) {
-        console.error('Error loading stats:', error);
-      }
-    };
-    loadStats();
-  }, []);
-
-  if (usersLoading || coursesLoading || analyticsLoading) {
+  if (usersLoading || coursesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -81,87 +58,31 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     );
   }
 
-  const students = users.filter(u => u.role === 'student');
-  const teachers = users.filter(u => u.role === 'teacher');
-  const admins = users.filter(u => u.role === 'admin');
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1>Admin Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
           <p className="text-muted-foreground">Manage your LMS platform</p>
         </div>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{users.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {students.length} students • {teachers.length} teachers
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Total Courses</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{courses.length}</div>
-            <p className="text-xs text-muted-foreground">Active courses</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Enrollments</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{enrollmentsCount}</div>
-            <p className="text-xs text-muted-foreground">Active enrollments</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Assignments</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{assignmentsCount}</div>
-            <p className="text-xs text-muted-foreground">Total assignments</p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center justify-between mb-4">
-          <TabsList className="grid w-auto grid-cols-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <TabsList>
             <TabsTrigger value="overview">
-              <Activity className="h-4 w-4 mr-2" />
+              <Activity className="h-4 w-4" />
               Overview
             </TabsTrigger>
             <TabsTrigger value="users">
-              <Users className="h-4 w-4 mr-2" />
+              <Users className="h-4 w-4" />
               Users
             </TabsTrigger>
             <TabsTrigger value="courses">
-              <BookOpen className="h-4 w-4 mr-2" />
+              <BookOpen className="h-4 w-4" />
               Courses
-            </TabsTrigger>
-            <TabsTrigger value="analytics">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Analytics
             </TabsTrigger>
           </TabsList>
           
@@ -230,10 +151,6 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
 
         <TabsContent value="reports">
           <ReportsExport users={users} courses={courses} />
-        </TabsContent>
-
-        <TabsContent value="analytics">
-          <AdminAnalytics users={users} courses={courses} />
         </TabsContent>
 
         <TabsContent value="settings">

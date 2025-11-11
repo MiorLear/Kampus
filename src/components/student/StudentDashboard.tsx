@@ -129,7 +129,7 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
         // Get assignments for enrolled courses
         if (enrolledCourseIds.length > 0) {
           const assignmentsPromises = enrolledCourseIds.map(courseId =>
-            FirestoreService.getAssignmentsByCourse(courseId)
+            ApiService.getAssignmentsByCourse(courseId)
           );
           const allAssignments = (await Promise.all(assignmentsPromises)).flat();
           

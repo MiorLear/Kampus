@@ -17,7 +17,7 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { User, Course } from '../../services/firestore.service';
-import { FirestoreService } from '../../services/firestore.service';
+import { ApiService } from '../../services/api.service';
 import { Users, BookOpen, TrendingUp, Activity } from 'lucide-react';
 
 interface AdminAnalyticsProps {
@@ -42,7 +42,7 @@ export function AdminAnalytics({ users, courses }: AdminAnalyticsProps) {
       const courseEnrollments = await Promise.all(
         courses.slice(0, 10).map(async (course) => {
           if (!course || !course.id || !course.title) return null;
-          const enrollments = await FirestoreService.getEnrollmentsByCourse(course.id);
+          const enrollments = await ApiService.getEnrollmentsByCourse(course.id);
           return {
             name: course.title.length > 20 ? course.title.substring(0, 20) + '...' : course.title,
             students: enrollments.length,

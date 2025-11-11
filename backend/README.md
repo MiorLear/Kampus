@@ -1,6 +1,6 @@
 # Kampus Backend (Flask + Firebase)
 
-This directory contains the new Flask-based backend for the Kampus platform. It exposes REST endpoints under `/api/*` and uses Firebase Firestore as the data store.
+This directory contains the new Flask-based backend for the Kampus platform. It exposes REST endpoints at the root level (`/`) and uses Firebase Firestore as the data store.
 
 ## 🚀 Quick Start
 
@@ -46,28 +46,35 @@ backend/
 
 ## 🔌 Available Endpoints (v0)
 
-- `GET /api/courses` – List all courses (optional `?teacher_id=` filter)
-- `GET /api/modules/courses/<course_id>/modules` – List modules for a course
-- `GET /api/enrollments?student_id=<uid>` – Enrollments for a student
-- `POST /api/enrollments` – Create enrollment (expects `student_id`, `course_id`)
-- `POST /api/progress/access` – Guardar acceso a módulo
-- `POST /api/progress` – Guardar progreso parcial
-- `POST /api/progress/complete` – Marcar módulo como completado
-- `GET /api/progress/module/<user_id>/<course_id>/<module_id>` – Progreso de módulo
-- `GET /api/progress/course/<user_id>/<course_id>` – Progreso por módulo del curso
-- `GET /api/progress/course/<user_id>/<course_id>/summary` – Resumen del curso
+- `GET /` – API index with available endpoints
+- `GET /courses` – List all courses (optional `?teacher_id=` filter)
+- `GET /modules/courses/<course_id>/modules` – List modules for a course
+- `GET /enrollments?student_id=<uid>` – Enrollments for a student
+- `POST /enrollments` – Create enrollment (expects `student_id`, `course_id`)
+- `POST /progress/access` – Guardar acceso a módulo
+- `POST /progress` – Guardar progreso parcial
+- `POST /progress/complete` – Marcar módulo como completado
+- `GET /progress/module/<user_id>/<course_id>/<module_id>` – Progreso de módulo
+- `GET /progress/course/<user_id>/<course_id>` – Progreso por módulo del curso
+- `GET /progress/course/<user_id>/<course_id>/summary` – Resumen del curso
 
 ## 🧪 Testing sample requests
 
 ```bash
-curl http://localhost:8000/api/courses
-curl "http://localhost:8000/api/courses?teacher_id=some_uid"
+# API index
+curl http://localhost:8000/
 
-curl "http://localhost:8000/api/modules/courses/COURSE_ID/modules"
+# Courses
+curl http://localhost:8000/courses
+curl "http://localhost:8000/courses?teacher_id=some_uid"
 
-curl "http://localhost:8000/api/enrollments?student_id=USER_ID"
+# Modules
+curl "http://localhost:8000/modules/courses/COURSE_ID/modules"
 
-curl -X POST http://localhost:8000/api/enrollments \
+# Enrollments
+curl "http://localhost:8000/enrollments?student_id=USER_ID"
+
+curl -X POST http://localhost:8000/enrollments \
   -H "Content-Type: application/json" \
   -d '{"student_id": "USER_ID", "course_id": "COURSE_ID"}'
 ```

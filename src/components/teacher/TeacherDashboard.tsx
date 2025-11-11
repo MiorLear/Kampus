@@ -16,7 +16,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useCourses, useAssignments, useSubmissions, useEnrollments } from '../../hooks/useFirestore';
-import { FirestoreService } from '../../services/firestore.service';
+import { ApiService } from '../../services/api.service';
 import { formatDate, getTimeRemaining } from '../../utils/firebase-helpers';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
@@ -71,19 +71,19 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
     const loadData = async () => {
       if (courses.length > 0) {
         // Get enrollments for all courses
-        const enrollmentsPromises = courses.map(c => FirestoreService.getEnrollmentsByCourse(c.id));
+        const enrollmentsPromises = courses.map(c => ApiService.getEnrollmentsByCourse(c.id));
         const enrollmentsArrays = await Promise.all(enrollmentsPromises);
         const allEnrollments = enrollmentsArrays.flat();
         setCourseEnrollments(allEnrollments);
 
         // Get all assignments
-        const assignmentsPromises = courses.map(c => FirestoreService.getAssignmentsByCourse(c.id));
+        const assignmentsPromises = courses.map(c => ApiService.getAssignmentsByCourse(c.id));
         const assignmentsArrays = await Promise.all(assignmentsPromises);
         const assignments = assignmentsArrays.flat();
         setAllAssignments(assignments);
 
         // Get pending submissions
-        const submissionsPromises = assignments.map(a => FirestoreService.getSubmissionsByAssignment(a.id));
+        const submissionsPromises = assignments.map(a => ApiService.getSubmissionsByAssignment(a.id));
         const submissionsArrays = await Promise.all(submissionsPromises);
         const allSubs = submissionsArrays.flat();
         const pending = allSubs.filter(s => s.grade === undefined || s.grade === null);
@@ -101,7 +101,7 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
     }
 
     try {
-      await FirestoreService.createCourse({
+      await ApiService.createCourse({
         title: newCourse.title,
         description: newCourse.description,
         teacher_id: user.id,
@@ -124,7 +124,7 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
     }
 
     try {
-      await FirestoreService.createAssignment({
+      await ApiService.createAssignment({
         course_id: selectedCourse,
         title: newAssignment.title,
         description: newAssignment.description,

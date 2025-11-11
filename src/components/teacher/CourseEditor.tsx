@@ -26,7 +26,8 @@ import {
   Move,
   Copy
 } from 'lucide-react';
-import { FirestoreService, CourseModule } from '../../services/firestore.service';
+import { CourseModule } from '../../services/firestore.service';
+import { ApiService } from '../../services/api.service';
 import { toast } from 'sonner';
 
 interface Course {
@@ -68,7 +69,7 @@ export function CourseEditor({ course, onBack }: CourseEditorProps) {
     try {
       setLoading(true);
       console.log('Loading modules for course:', course.id);
-      const courseModules = await FirestoreService.getCourseModules(course.id);
+      const courseModules = await ApiService.getCourseModules(course.id);
       console.log('Loaded modules:', courseModules);
       console.log('Setting modules state with:', courseModules);
       setModules(courseModules);
@@ -98,7 +99,7 @@ export function CourseEditor({ course, onBack }: CourseEditorProps) {
 
       console.log('Module data to save:', moduleData);
       
-      const moduleId = await FirestoreService.addCourseModule(course.id, moduleData);
+      const moduleId = await ApiService.createModule(course.id, moduleData);
       console.log('Module saved with ID:', moduleId);
       
       toast.success('Module added successfully');
@@ -113,7 +114,7 @@ export function CourseEditor({ course, onBack }: CourseEditorProps) {
 
   const handleUpdateModule = async (moduleId: string, updates: Partial<CourseModule>) => {
     try {
-      await FirestoreService.updateCourseModule(moduleId, updates);
+      await ApiService.updateModule(moduleId, updates);
       toast.success('Module updated successfully');
       loadModules();
     } catch (error) {
@@ -124,7 +125,7 @@ export function CourseEditor({ course, onBack }: CourseEditorProps) {
 
   const handleDeleteModule = async (moduleId: string) => {
     try {
-      await FirestoreService.deleteCourseModule(moduleId);
+      await ApiService.deleteModule(moduleId);
       toast.success('Module deleted successfully');
       loadModules();
     } catch (error) {
@@ -171,7 +172,7 @@ export function CourseEditor({ course, onBack }: CourseEditorProps) {
     // Update order in database
     try {
       for (const module of updatedModules) {
-        await FirestoreService.updateCourseModule(module.id, { order: module.order });
+        await ApiService.updateModule(module.id, { order: module.order });
       }
       toast.success('Module order updated');
     } catch (error) {

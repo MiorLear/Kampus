@@ -65,8 +65,8 @@ export function MessageManagement({ users }: MessageManagementProps) {
       const allMessages: Message[] = [];
       
       for (const user of users) {
-        const sentMessages = await FirestoreService.getSentMessages(user.id);
-        const receivedMessages = await FirestoreService.getReceivedMessages(user.id);
+        const sentMessages = await ApiService.getSentMessages(user.id);
+        const receivedMessages = await ApiService.getReceivedMessages(user.id);
         allMessages.push(...sentMessages, ...receivedMessages);
       }
       
@@ -118,7 +118,7 @@ export function MessageManagement({ users }: MessageManagementProps) {
     if (!selectedMessage) return;
 
     try {
-      await FirestoreService.deleteMessage(selectedMessage.id);
+      await ApiService.deleteMessage(selectedMessage.id);
       toast.success('Message deleted successfully');
       setShowDeleteDialog(false);
       loadMessages();
@@ -130,7 +130,7 @@ export function MessageManagement({ users }: MessageManagementProps) {
 
   const handleMarkAsRead = async (messageId: string) => {
     try {
-      await FirestoreService.markMessageAsRead(messageId);
+      await ApiService.markMessageAsRead(messageId);
       toast.success('Message marked as read');
       loadMessages();
     } catch (error) {

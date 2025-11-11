@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { 
-  FirestoreService, 
   Course, 
   Enrollment, 
   Assignment, 
@@ -157,7 +156,7 @@ export function useAssignments(courseId?: string) {
     const fetchAssignments = async () => {
       try {
         setLoading(true);
-        const data = await FirestoreService.getAssignmentsByCourse(courseId);
+        const data = await ApiService.getAssignmentsByCourse(courseId);
         setAssignments(data);
       } catch (err: any) {
         setError(err.message);
@@ -172,7 +171,7 @@ export function useAssignments(courseId?: string) {
   const refreshAssignments = async () => {
     if (!courseId) return;
     try {
-      const data = await FirestoreService.getAssignmentsByCourse(courseId);
+      const data = await ApiService.getAssignmentsByCourse(courseId);
       setAssignments(data);
     } catch (err: any) {
       setError(err.message);
@@ -195,9 +194,9 @@ export function useSubmissions(assignmentId?: string, studentId?: string) {
         setLoading(true);
         let data: Submission[];
         if (assignmentId) {
-          data = await FirestoreService.getSubmissionsByAssignment(assignmentId);
+          data = await ApiService.getSubmissionsByAssignment(assignmentId);
         } else if (studentId) {
-          data = await FirestoreService.getSubmissionsByStudent(studentId);
+          data = await ApiService.getSubmissionsByStudent(studentId);
         } else {
           data = [];
         }
@@ -216,9 +215,9 @@ export function useSubmissions(assignmentId?: string, studentId?: string) {
     try {
       let data: Submission[];
       if (assignmentId) {
-        data = await FirestoreService.getSubmissionsByAssignment(assignmentId);
+        data = await ApiService.getSubmissionsByAssignment(assignmentId);
       } else if (studentId) {
-        data = await FirestoreService.getSubmissionsByStudent(studentId);
+        data = await ApiService.getSubmissionsByStudent(studentId);
       } else {
         data = [];
       }
@@ -247,7 +246,7 @@ export function useAnnouncements(courseId?: string) {
     const fetchAnnouncements = async () => {
       try {
         setLoading(true);
-        const data = await FirestoreService.getAnnouncementsByCourse(courseId);
+        const data = await ApiService.getAnnouncementsByCourse(courseId);
         setAnnouncements(data);
       } catch (err: any) {
         setError(err.message);
@@ -262,7 +261,7 @@ export function useAnnouncements(courseId?: string) {
   const refreshAnnouncements = async () => {
     if (!courseId) return;
     try {
-      const data = await FirestoreService.getAnnouncementsByCourse(courseId);
+      const data = await ApiService.getAnnouncementsByCourse(courseId);
       setAnnouncements(data);
     } catch (err: any) {
       setError(err.message);
@@ -284,8 +283,8 @@ export function useMessages(userId: string, otherUserId?: string) {
       try {
         setLoading(true);
         const data = otherUserId
-          ? await FirestoreService.getMessagesBetweenUsers(userId, otherUserId)
-          : await FirestoreService.getReceivedMessages(userId);
+          ? await ApiService.getMessagesBetweenUsers(userId, otherUserId)
+          : await ApiService.getReceivedMessages(userId);
         setMessages(data);
       } catch (err: any) {
         setError(err.message);
@@ -300,8 +299,8 @@ export function useMessages(userId: string, otherUserId?: string) {
   const refreshMessages = async () => {
     try {
       const data = otherUserId
-        ? await FirestoreService.getMessagesBetweenUsers(userId, otherUserId)
-        : await FirestoreService.getReceivedMessages(userId);
+        ? await ApiService.getMessagesBetweenUsers(userId, otherUserId)
+        : await ApiService.getReceivedMessages(userId);
       setMessages(data);
     } catch (err: any) {
       setError(err.message);
@@ -323,8 +322,8 @@ export function useUsers(role?: 'student' | 'teacher' | 'admin') {
       try {
         setLoading(true);
         const data = role
-          ? await FirestoreService.getUsersByRole(role)
-          : await FirestoreService.getAllUsers();
+          ? await ApiService.getUsersByRole(role)
+          : await ApiService.getAllUsers();
         setUsers(data);
       } catch (err: any) {
         setError(err.message);
@@ -339,8 +338,8 @@ export function useUsers(role?: 'student' | 'teacher' | 'admin') {
   const refreshUsers = async () => {
     try {
       const data = role
-        ? await FirestoreService.getUsersByRole(role)
-        : await FirestoreService.getAllUsers();
+        ? await ApiService.getUsersByRole(role)
+        : await ApiService.getAllUsers();
       setUsers(data);
     } catch (err: any) {
       setError(err.message);
@@ -364,16 +363,16 @@ export function useAnalytics(type: 'student' | 'teacher' | 'course' | 'system', 
         let data;
         switch (type) {
           case 'student':
-            if (id) data = await FirestoreService.getStudentAnalytics(id);
+            if (id) data = await ApiService.getStudentAnalytics(id);
             break;
           case 'teacher':
-            if (id) data = await FirestoreService.getTeacherAnalytics(id);
+            if (id) data = await ApiService.getTeacherAnalytics(id);
             break;
           case 'course':
-            if (id) data = await FirestoreService.getCourseAnalytics(id);
+            if (id) data = await ApiService.getCourseAnalytics(id);
             break;
           case 'system':
-            data = await FirestoreService.getSystemAnalytics();
+            data = await ApiService.getSystemAnalytics();
             break;
         }
         setAnalytics(data);
@@ -392,16 +391,16 @@ export function useAnalytics(type: 'student' | 'teacher' | 'course' | 'system', 
       let data;
       switch (type) {
         case 'student':
-          if (id) data = await FirestoreService.getStudentAnalytics(id);
+          if (id) data = await ApiService.getStudentAnalytics(id);
           break;
         case 'teacher':
-          if (id) data = await FirestoreService.getTeacherAnalytics(id);
+          if (id) data = await ApiService.getTeacherAnalytics(id);
           break;
         case 'course':
-          if (id) data = await FirestoreService.getCourseAnalytics(id);
+          if (id) data = await ApiService.getCourseAnalytics(id);
           break;
         case 'system':
-          data = await FirestoreService.getSystemAnalytics();
+          data = await ApiService.getSystemAnalytics();
           break;
       }
       setAnalytics(data);
