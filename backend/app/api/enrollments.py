@@ -19,12 +19,16 @@ def list_enrollments():
         elif course_id:
             enrollments = service.list_by_course(course_id)
         else:
-            return jsonify({"error": "student_id or course_id query parameter is required"}), 400
+            # If no parameters, return empty array instead of error
+            # This allows the frontend to work even if no filters are provided
+            return jsonify([]), 200
 
         return jsonify(enrollments), 200
     except Exception as exc:  # pylint: disable=broad-except
-        print("Error fetching enrollments:", exc)
-        return jsonify({"error": "Failed to fetch enrollments"}), 500
+        print(f"Error fetching enrollments: {exc}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Failed to fetch enrollments", "details": str(exc)}), 500
 
 
 @enrollments_bp.post("/")

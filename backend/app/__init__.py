@@ -10,6 +10,7 @@ from app.api.modules import modules_bp
 from app.api.enrollments import enrollments_bp
 from app.api.progress import progress_bp
 from app.api.users import users_bp
+from app.api.assignments import assignments_bp
 
 
 def create_app() -> Flask:
@@ -65,6 +66,7 @@ def create_app() -> Flask:
     app.register_blueprint(enrollments_bp, url_prefix="/enrollments")
     app.register_blueprint(progress_bp, url_prefix="/progress")
     app.register_blueprint(users_bp, url_prefix="/users")
+    app.register_blueprint(assignments_bp, url_prefix="/assignments")
 
     @app.get("/")
     def api_index():
@@ -100,6 +102,14 @@ def create_app() -> Flask:
                         "/progress/module/<user_id>/<course_id>/<module_id>",
                         "/progress/course/<user_id>/<course_id>",
                         "/progress/course/<user_id>/<course_id>/summary",
+                    ],
+                    "assignments": [
+                        "/assignments",
+                        "/assignments?course_id=<course_id>",
+                        "/assignments/<assignment_id>",
+                        "POST /assignments",
+                        "PUT /assignments/<assignment_id>",
+                        "DELETE /assignments/<assignment_id>",
                     ],
                 },
             }
