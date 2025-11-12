@@ -13,8 +13,8 @@
 
 Ahora el proyecto tiene **2 partes**:
 
-1. **Frontend** (React + Vite) - Puerto 5173
-2. **Backend** (Express + TypeScript) - Puerto 5000
+1. **Frontend** (React + TypeScript + Vite) - Puerto 3000 (o el configurado)
+2. **Backend** (Flask + Python) - Puerto 8000
 
 ---
 
@@ -54,14 +54,16 @@ VITE_FIREBASE_PROJECT_ID=tu_proyecto_id
 VITE_FIREBASE_STORAGE_BUCKET=tu_proyecto.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=tu_sender_id
 VITE_FIREBASE_APP_ID=tu_app_id
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:8000
 ```
 
 ### Paso 3: Instalar Dependencias del Backend
 
 ```bash
 cd backend
-npm install
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
 ### Paso 4: Configurar Firebase Admin SDK
@@ -75,33 +77,13 @@ npm install
 5. Descarga el archivo JSON
 6. Guárdalo como `backend/firebase-service-account.json`
 
-**Opción B: Application Default Credentials (Desarrollo Local)**
-
-```bash
-# Instalar Google Cloud CLI (si no lo tienes)
-# Windows: https://cloud.google.com/sdk/docs/install-sdk#windows
-# Mac: brew install google-cloud-sdk
-# Linux: https://cloud.google.com/sdk/docs/install-sdk#linux
-
-# Autenticarse
-gcloud auth application-default login
-```
-
-Luego descomenta la sección de Application Default Credentials en `backend/src/config/firebase.ts`.
-
 ### Paso 5: Configurar Variables de Entorno del Backend
 
-```bash
-cd backend
-cp .env.example .env
-```
-
-Editar `backend/.env`:
+Crear archivo `.env` en `backend/`:
 
 ```env
-PORT=5000
-FRONTEND_URL=http://localhost:5173
-NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
+FIREBASE_CREDENTIALS_PATH=firebase-service-account.json
 ```
 
 ### Paso 6: Levantar el Backend
@@ -110,14 +92,13 @@ NODE_ENV=development
 
 ```bash
 cd backend
-npm run dev
+python run.py
 ```
 
 Deberías ver:
 ```
-🚀 Backend server running on port 5000
-📡 API available at http://localhost:5000/api
-❤️  Health check at http://localhost:5000/health
+ * Running on http://0.0.0.0:8000
+ * Debug mode: on
 ```
 
 ### Paso 7: Levantar el Frontend
@@ -133,7 +114,7 @@ Deberías ver:
 ```
   VITE v6.3.5  ready in 500 ms
 
-  ➜  Local:   http://localhost:5173/
+  ➜  Local:   http://localhost:3000/
   ➜  Network: use --host to expose
 ```
 
@@ -144,21 +125,20 @@ Deberías ver:
 ### 1. Verificar Backend
 
 Abrir en el navegador:
-- http://localhost:5000/health
+- http://localhost:8000/health
 
 Deberías ver:
 ```json
 {
   "status": "ok",
-  "timestamp": "2024-01-01T12:00:00.000Z",
-  "service": "kampus-backend"
+  "message": "API is running"
 }
 ```
 
 ### 2. Verificar Frontend
 
 Abrir en el navegador:
-- http://localhost:5173
+- http://localhost:3000 (o el puerto configurado)
 
 Deberías ver la aplicación funcionando.
 
@@ -167,19 +147,17 @@ Deberías ver la aplicación funcionando.
 Abre la consola del navegador (F12) cuando estés logueado y ejecuta:
 
 ```javascript
-// Obtener token
-const user = firebase.auth().currentUser;
-const token = await user.getIdToken();
-console.log('Token:', token);
-
 // Probar API (desde la consola o usar Postman)
-fetch('http://localhost:5000/api/users', {
-  headers: {
-    'Authorization': `Bearer ${token}`
-  }
-})
+fetch('http://localhost:8000/users')
   .then(res => res.json())
   .then(data => console.log('Users:', data));
+```
+
+O usar curl:
+```bash
+curl http://localhost:8000/users
+curl http://localhost:8000/courses
+curl http://localhost:8000/assignments
 ```
 
 ---
@@ -191,17 +169,14 @@ fetch('http://localhost:5000/api/users', {
 ```bash
 cd backend
 
+# Activar entorno virtual
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
 # Desarrollo (con hot reload)
-npm run dev
+python run.py
 
-# Build para producción
-npm run build
-
-# Ejecutar build de producción
-npm start
-
-# Type checking
-npm run type-check
+# Verificar instalación
+python -c "from app import create_app; app = create_app(); print('App created successfully')"
 ```
 
 ### Frontend
@@ -227,31 +202,33 @@ npm install axios
 ```
 
 ### Error: "Firebase Admin SDK not initialized"
-- Verifica que tengas configurado el Service Account o Application Default Credentials
-- Verifica la configuración en `backend/src/config/firebase.ts`
+- Verifica que el archivo `firebase-service-account.json` existe en `backend/`
+- Verifica que el path en `backend/.env` sea correcto
+- Verifica que el archivo JSON sea válido
 
 ### Error: "CORS blocked"
-- Verifica que `FRONTEND_URL` en `backend/.env` sea `http://localhost:5173`
-- Verifica que el backend esté corriendo en el puerto 5000
+- Verifica que el backend esté corriendo
+- Verifica que `FRONTEND_URL` en `backend/.env` sea correcto
+- Verifica que los headers CORS estén configurados correctamente
 
 ### Error: "Connection refused" al llamar API
-- Verifica que el backend esté corriendo (`npm run dev` en la carpeta backend)
-- Verifica que el puerto 5000 no esté en uso
-- Verifica `VITE_API_URL` en el `.env` del frontend
+- Verifica que el backend esté corriendo (`python run.py` en la carpeta backend)
+- Verifica que el puerto 8000 no esté en uso
+- Verifica `VITE_API_URL` en el `.env` del frontend (debe ser `http://localhost:8000`)
 
-### Error: "Unauthorized" en las llamadas API
-- Verifica que estés logueado en el frontend
-- Verifica que el token se esté enviando correctamente (revisa `src/api/client.ts`)
+### Error: "ModuleNotFoundError: No module named 'flask'"
+- Verifica que hayas instalado las dependencias: `pip install -r requirements.txt`
+- Verifica que el entorno virtual esté activado
 
 ### Puerto ya en uso
 
-**Backend (puerto 5000):**
+**Backend (puerto 8000):**
 ```bash
-# Cambiar puerto en backend/.env
-PORT=5001
+# Cambiar puerto en backend/run.py
+app.run(host="0.0.0.0", port=8001, debug=True)
 ```
 
-**Frontend (puerto 5173):**
+**Frontend (puerto 3000):**
 ```bash
 # Cambiar en vite.config.ts o usar flag
 npm run dev -- --port 3001

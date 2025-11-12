@@ -48,10 +48,12 @@ export function AuthPage({ authState, onAuthStateChange }: AuthPageProps) {
     try {
       await AuthService.login(formData.email, formData.password);
       toast.success('Login successful!');
+      // The useAuth hook will detect the auth state change via onAuthStateChanged
+      // App.tsx will automatically redirect to the dashboard when user is available
+      // No need to manually redirect - React state will handle it
     } catch (err: any) {
       setError(err.message || 'Login failed');
       toast.error(err.message || 'Login failed');
-    } finally {
       setLoading(false);
     }
   };

@@ -75,16 +75,21 @@ npm run dev
 # 4. Abrir http://localhost:5173
 ```
 
-#### Opción 2: Full Stack (Backend + Frontend) - RECOMENDADO
+#### Opción 2: Full Stack (Backend Flask + Frontend) - RECOMENDADO
 
 1. **Instalar dependencias:**
-```bash
-# Instalar todo (frontend + backend)
-npm run install:all
 
-# O manualmente:
-npm install                    # Frontend
-cd backend && npm install      # Backend
+**Frontend:**
+```bash
+npm install
+```
+
+**Backend:**
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
 2. **Configurar Variables de Entorno:**
@@ -97,20 +102,13 @@ VITE_FIREBASE_PROJECT_ID=your_project_id
 VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:8000
 ```
 
 **Backend** - Crear `backend/.env`:
-```bash
-cd backend
-cp .env.example .env
-```
-
-Editar `backend/.env`:
 ```env
-PORT=5000
-FRONTEND_URL=http://localhost:5173
-NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
+FIREBASE_CREDENTIALS_PATH=firebase-service-account.json
 ```
 
 3. **Configurar Firebase Admin SDK:**
@@ -119,36 +117,25 @@ Ve a [Firebase Console](https://console.firebase.google.com/) → Project Settin
 - Descarga la clave privada
 - Guárdala como `backend/firebase-service-account.json`
 
-O usa Application Default Credentials:
-```bash
-gcloud auth application-default login
-```
-
 4. **Iniciar Servidores:**
 
-**Opción A: Ambos en una sola terminal (requiere `concurrently`):**
-```bash
-npm run dev:all
-```
-
-**Opción B: En terminales separadas:**
-
-Terminal 1 (Backend):
+**Terminal 1 (Backend):**
 ```bash
 cd backend
-npm run dev
+python run.py
 ```
 
-Terminal 2 (Frontend):
+**Terminal 2 (Frontend):**
 ```bash
 npm run dev
 ```
 
 5. **Verificar:**
-- Backend: http://localhost:5000/health
-- Frontend: http://localhost:5173
+- Backend: http://localhost:8000/health
+- Frontend: http://localhost:3000 (o el puerto configurado en vite.config.ts)
 
 > 📖 **Guía detallada**: Ver [INSTRUCCIONES_INICIO.md](./INSTRUCCIONES_INICIO.md) para más detalles
+> 📖 **Documentación del Backend**: Ver [BACKEND_SETUP.md](./BACKEND_SETUP.md) y [BACKEND_API.md](./BACKEND_API.md)
 
 ### Firebase Setup
 
@@ -197,11 +184,13 @@ Ver [PERFILES_DE_USUARIO.md](./PERFILES_DE_USUARIO.md) para detalles de cada usu
 - **Build Tool**: Vite
 
 ### Backend
-- **Runtime**: Node.js
-- **Framework**: Express.js
-- **Language**: TypeScript
+- **Runtime**: Python 3.13+
+- **Framework**: Flask 3.0.3
+- **Language**: Python
 - **Database**: Firebase Admin SDK → Firestore
-- **Authentication**: Firebase Admin Auth
+- **Authentication**: Firebase Admin Auth (próximamente)
+- **CORS**: Flask-CORS 4.0.0
+- **Architecture**: MVC (Model-View-Controller)
 
 ### Infrastructure
 - **Authentication**: Firebase Auth
@@ -211,18 +200,27 @@ Ver [PERFILES_DE_USUARIO.md](./PERFILES_DE_USUARIO.md) para detalles de cada usu
 ## Project Structure
 
 ```
-src/
-├── components/          # Reusable UI components
-│   ├── auth/           # Authentication components
-│   ├── admin/          # Admin-specific components
-│   ├── teacher/        # Teacher-specific components
-│   ├── student/        # Student-specific components
-│   └── ui/             # Base UI components
-├── contexts/           # React contexts (Auth)
-├── lib/                # Utilities and configurations
-├── routes/             # Route components
-├── services/           # API and Firebase services
-└── styles/             # Global styles
+Kampus/
+├── src/                      # Frontend (React + TypeScript)
+│   ├── components/          # Reusable UI components
+│   │   ├── auth/           # Authentication components
+│   │   ├── admin/          # Admin-specific components
+│   │   ├── teacher/        # Teacher-specific components
+│   │   ├── student/        # Student-specific components
+│   │   └── ui/             # Base UI components
+│   ├── api/                # API client configuration
+│   ├── hooks/              # React hooks (useAuth, useFirestore)
+│   ├── services/           # API and Firebase services
+│   └── styles/             # Global styles
+│
+└── backend/                 # Backend (Flask + Python)
+    ├── app/
+    │   ├── api/            # API endpoints (Blueprints)
+    │   ├── services/       # Business logic
+    │   ├── repositories/   # Data access layer
+    │   └── __init__.py     # Flask app factory
+    ├── run.py              # Development server
+    └── requirements.txt    # Python dependencies
 ```
 
 ## Authentication Flow

@@ -9,7 +9,7 @@ load_dotenv()
 class Config:
     """Base configuration for Flask app."""
 
-    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
     FIREBASE_CREDENTIALS_PATH = os.getenv(
         "FIREBASE_CREDENTIALS_PATH", "firebase-service-account.json"
     )

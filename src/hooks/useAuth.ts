@@ -16,13 +16,52 @@ export function useAuth() {
 
       if (firebaseUser) {
         try {
-          // Get user profile from Firestore
-          const userProfile = await AuthService.getUserProfile(firebaseUser.uid);
-          setUser(userProfile);
-          setFirebaseUser(firebaseUser);
+          // Retry logic to get user profile from Firestore
+          // This handles cases where the profile might not be immediately available after registration
+          let userProfile = await AuthService.getUserProfile(firebaseUser.uid);
+          let retries = 0;
+          const maxRetries = 5;
+          const retryDelay = 300; // 300ms
+
+          // If profile not found, retry a few times (helps with registration timing)
+          while (!userProfile && retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            userProfile = await AuthService.getUserProfile(firebaseUser.uid);
+            retries++;
+          }
+
+          // If profile still doesn't exist after retries, create a basic one
+          if (!userProfile && firebaseUser) {
+            console.warn('User profile not found, creating basic profile');
+            const basicProfile = {
+              id: firebaseUser.uid,
+              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              email: firebaseUser.email || '',
+              role: 'student' as const,
+              created_at: new Date().toISOString(),
+            };
+            
+            try {
+              await AuthService.updateUserProfile(firebaseUser.uid, basicProfile);
+              userProfile = basicProfile;
+            } catch (updateError) {
+              console.error('Error creating basic profile:', updateError);
+            }
+          }
+
+          if (userProfile) {
+            setUser(userProfile);
+            setFirebaseUser(firebaseUser);
+          } else {
+            console.error('Could not load user profile after retries');
+            setError('Error loading user profile');
+            setUser(null);
+            setFirebaseUser(null);
+          }
         } catch (err: any) {
           console.error('Error fetching user profile:', err);
           setError(err.message || 'Error loading user profile');
+          // Clear user on error to prevent stale state
           setUser(null);
           setFirebaseUser(null);
         }

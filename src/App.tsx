@@ -32,6 +32,7 @@ const ProfilePageLazy = lazy(() => import('./components/profiles/ProfilePage').t
       }
     }, [user]);
   
+    // Show loading state while checking authentication
     if (loading) {
       return (
         <div className="min-h-screen bg-background flex items-center justify-center">
@@ -42,7 +43,8 @@ const ProfilePageLazy = lazy(() => import('./components/profiles/ProfilePage').t
         </div>
       );
     }
-  
+
+    // Show auth page if user is not authenticated
     if (!user) {
       return (
         <>
@@ -54,6 +56,19 @@ const ProfilePageLazy = lazy(() => import('./components/profiles/ProfilePage').t
         </>
       );
     }
+
+    // Reset to dashboard view after successful login
+    // This ensures users always see the dashboard when they first log in
+    useEffect(() => {
+      if (user) {
+        // Clear any previous view state to ensure fresh start after login
+        const wasLoggedOut = sessionStorage.getItem('wasLoggedOut') === 'true';
+        if (wasLoggedOut) {
+          sessionStorage.removeItem('wasLoggedOut');
+          setViewState('dashboard');
+        }
+      }
+    }, [user]);
   
     const handleInitializeComplete = () => {
       if (user) {
