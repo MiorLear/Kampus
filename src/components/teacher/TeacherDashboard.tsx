@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -36,10 +37,41 @@ interface UserProfile {
 
 interface TeacherDashboardProps {
   user: UserProfile;
+  defaultTab?: string;
 }
 
-export function TeacherDashboard({ user }: TeacherDashboardProps) {
-  const [activeTab, setActiveTab] = useState('overview');
+export function TeacherDashboard({ user, defaultTab }: TeacherDashboardProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(defaultTab || 'overview');
+
+  // Sync activeTab with URL
+  useEffect(() => {
+    const pathToTab: Record<string, string> = {
+      '/teacher/courses': 'courses',
+      '/teacher/assignments': 'assignments',
+      '/teacher/students': 'students',
+    };
+    const tab = pathToTab[location.pathname];
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [location.pathname, activeTab]);
+
+  // Handle tab change - update URL
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const tabToPath: Record<string, string> = {
+      'overview': '/dashboard',
+      'courses': '/teacher/courses',
+      'assignments': '/teacher/assignments',
+      'students': '/teacher/students',
+    };
+    const path = tabToPath[value];
+    if (path) {
+      navigate(path, { replace: true });
+    }
+  };
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [showCreateAssignment, setShowCreateAssignment] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
@@ -51,6 +83,7 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
   const [editingCourse, setEditingCourse] = useState<any>(null);
   
   const { courses, loading: coursesLoading, refreshCourses } = useCourses(user.id);
+  const { refreshEnrollments } = useEnrollments();
   
   const [courseEnrollments, setCourseEnrollments] = useState<any[]>([]);
   const [allAssignments, setAllAssignments] = useState<any[]>([]);
@@ -69,25 +102,58 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
 
   useEffect(() => {
     const loadData = async () => {
-      if (courses.length > 0) {
-        // Get enrollments for all courses
-        const enrollmentsPromises = courses.map(c => ApiService.getEnrollmentsByCourse(c.id));
-        const enrollmentsArrays = await Promise.all(enrollmentsPromises);
-        const allEnrollments = enrollmentsArrays.flat();
-        setCourseEnrollments(allEnrollments);
+      try {
+        if (courses.length > 0) {
+          // Get enrollments for all courses
+          try {
+            const enrollmentsPromises = courses.map(c => 
+              ApiService.getEnrollmentsByCourse(c.id).catch(() => [])
+            );
+            const enrollmentsArrays = await Promise.all(enrollmentsPromises);
+            const allEnrollments = enrollmentsArrays.flat();
+            setCourseEnrollments(allEnrollments);
+          } catch (error) {
+            console.error('Error loading enrollments:', error);
+            setCourseEnrollments([]);
+          }
 
-        // Get all assignments
-        const assignmentsPromises = courses.map(c => ApiService.getAssignmentsByCourse(c.id));
-        const assignmentsArrays = await Promise.all(assignmentsPromises);
-        const assignments = assignmentsArrays.flat();
-        setAllAssignments(assignments);
+          // Get all assignments
+          try {
+            const assignmentsPromises = courses.map(c => 
+              ApiService.getAssignmentsByCourse(c.id).catch(() => [])
+            );
+            const assignmentsArrays = await Promise.all(assignmentsPromises);
+            const assignments = assignmentsArrays.flat();
+            setAllAssignments(assignments);
 
-        // Get pending submissions
-        const submissionsPromises = assignments.map(a => ApiService.getSubmissionsByAssignment(a.id));
-        const submissionsArrays = await Promise.all(submissionsPromises);
-        const allSubs = submissionsArrays.flat();
-        const pending = allSubs.filter(s => s.grade === undefined || s.grade === null);
-        setPendingSubmissions(pending);
+            // Get pending submissions
+            try {
+              const submissionsPromises = assignments.map(a => 
+                ApiService.getSubmissionsByAssignment(a.id).catch(() => [])
+              );
+              const submissionsArrays = await Promise.all(submissionsPromises);
+              const allSubs = submissionsArrays.flat();
+              const pending = allSubs.filter(s => s.grade === undefined || s.grade === null);
+              setPendingSubmissions(pending);
+            } catch (error) {
+              console.error('Error loading submissions:', error);
+              setPendingSubmissions([]);
+            }
+          } catch (error) {
+            console.error('Error loading assignments:', error);
+            setAllAssignments([]);
+            setPendingSubmissions([]);
+          }
+        } else {
+          setCourseEnrollments([]);
+          setAllAssignments([]);
+          setPendingSubmissions([]);
+        }
+      } catch (error) {
+        console.error('Error in loadData:', error);
+        setCourseEnrollments([]);
+        setAllAssignments([]);
+        setPendingSubmissions([]);
       }
     };
 
@@ -134,10 +200,24 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
       toast.success('Assignment created successfully!');
       setShowCreateAssignment(false);
       setNewAssignment({ title: '', description: '', due_date: '' });
+      const courseId = selectedCourse;
       setSelectedCourse(null);
       
-      // Refresh assignments
-      window.location.reload();
+      // Refresh assignments reactively - stays on same route
+      // Reload data for all courses to update assignments
+      const loadData = async () => {
+        try {
+          const assignmentsPromises = courses.map(c => 
+            ApiService.getAssignmentsByCourse(c.id).catch(() => [])
+          );
+          const assignmentsArrays = await Promise.all(assignmentsPromises);
+          const assignments = assignmentsArrays.flat();
+          setAllAssignments(assignments);
+        } catch (error) {
+          console.error('Error refreshing assignments:', error);
+        }
+      };
+      loadData();
     } catch (error) {
       toast.error('Failed to create assignment');
       console.error(error);
@@ -278,7 +358,7 @@ export function TeacherDashboard({ user }: TeacherDashboardProps) {
       </div>
 
       {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="courses">My Courses</TabsTrigger>

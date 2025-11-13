@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { 
@@ -26,6 +27,8 @@ interface NavigationProps {
 }
 
 export function Navigation({ user, onLogout, onViewProfile }: NavigationProps) {
+  const navigate = useNavigate();
+  
   if (!user) return null;
 
   const getRoleBadgeColor = (role: string) => {
@@ -41,18 +44,34 @@ export function Navigation({ user, onLogout, onViewProfile }: NavigationProps) {
     }
   };
 
+  const handleProfileClick = () => {
+    if (onViewProfile) {
+      onViewProfile();
+    } else {
+      navigate('/profile');
+    }
+  };
+
+  const handleLogout = () => {
+    onLogout();
+    navigate('/login');
+  };
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border px-6 py-3">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border px-4 sm:px-6 py-3">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
-        <div className="flex items-center gap-4">
+            <Link 
+              to={user.role === 'admin' ? '/admin/overview' : user.role === 'teacher' ? '/teacher/courses' : '/dashboard'} 
+              className="flex items-center gap-2 sm:gap-4"
+            >
           <Logo size="md" />
-          <div className="text-sm text-muted-foreground">
+          <div className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
             Key Institute
           </div>
-        </div>
+        </Link>
 
-        <div className="flex items-center gap-4">
-          <div className={`px-2 py-1 rounded-full text-xs capitalize ${getRoleBadgeColor(user.role)}`}>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className={`px-2 py-1 rounded-full text-xs capitalize hidden sm:block ${getRoleBadgeColor(user.role)}`}>
             {user.role}
           </div>
           
@@ -71,7 +90,7 @@ export function Navigation({ user, onLogout, onViewProfile }: NavigationProps) {
                 <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onViewProfile}>
+              <DropdownMenuItem onClick={handleProfileClick}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
@@ -80,7 +99,7 @@ export function Navigation({ user, onLogout, onViewProfile }: NavigationProps) {
                 <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onLogout}>
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

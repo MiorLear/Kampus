@@ -17,8 +17,6 @@ function initializeFirebaseAdmin() {
   }
 
   // OPCIÓN 1: Usar service account JSON (recomendado para producción)
-  // Descomenta y ajusta la ruta al archivo de service account
-  /*
   try {
     const serviceAccountPath = path.join(__dirname, '../../firebase-service-account.json');
     const serviceAccount = require(serviceAccountPath);
@@ -26,21 +24,22 @@ function initializeFirebaseAdmin() {
     app = initializeApp({
       credential: cert(serviceAccount),
     });
+    console.log('✅ Firebase Admin initialized with service account');
   } catch (error) {
-    console.warn('Service account file not found, using Application Default Credentials');
-  }
-  */
-
-  // OPCIÓN 2: Usar Application Default Credentials (Google Cloud)
-  // Para desarrollo local, puedes usar:
-  // gcloud auth application-default login
-  try {
-    app = initializeApp({
-      // Firebase Admin usará las credenciales por defecto del entorno
-    });
-  } catch (error) {
-    console.error('Error initializing Firebase Admin:', error);
-    throw error;
+    console.warn('⚠️  Service account file not found, trying Application Default Credentials');
+    
+    // OPCIÓN 2: Usar Application Default Credentials (Google Cloud)
+    // Para desarrollo local, puedes usar:
+    // gcloud auth application-default login
+    try {
+      app = initializeApp({
+        // Firebase Admin usará las credenciales por defecto del entorno
+      });
+      console.log('✅ Firebase Admin initialized with Application Default Credentials');
+    } catch (defaultError) {
+      console.error('❌ Error initializing Firebase Admin:', defaultError);
+      throw defaultError;
+    }
   }
 
   db = getFirestore(app);

@@ -228,6 +228,15 @@ export class ApiService {
     }
   }
 
+  static async getAllEnrollments(): Promise<any[]> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.ENROLLMENTS);
+      return response.data || [];
+    } catch (error) {
+      return [];
+    }
+  }
+
   static async enrollStudent(data: { student_id: string; course_id: string; progress?: number }): Promise<string> {
     try {
       // student_id viene del token, no se envía
@@ -253,6 +262,15 @@ export class ApiService {
       return response.data;
     } catch (error) {
       throw error;
+    }
+  }
+
+  static async getAllAssignments(): Promise<any[]> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.ASSIGNMENTS);
+      return response.data || [];
+    } catch (error) {
+      return [];
     }
   }
 

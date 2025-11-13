@@ -62,17 +62,19 @@ export function AssignmentEditor({
       });
     } else if (open) {
       // Reset form for new assignment
+      // If only one course, auto-select it
+      const defaultCourseId = courses.length === 1 ? courses[0].id : '';
       setFormData({
         title: '',
         description: '',
-        course_id: '',
+        course_id: defaultCourseId,
         due_date: '',
         max_points: 100,
         instructions: '',
         attachments: [],
       });
     }
-  }, [assignment, open]);
+  }, [assignment, open, courses]);
 
   const handleChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -154,28 +156,40 @@ export function AssignmentEditor({
             />
           </div>
 
-          {/* Course Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="course">
-              Course <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={formData.course_id}
-              onValueChange={(value) => handleChange('course_id', value)}
-              disabled={loading}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a course" />
-              </SelectTrigger>
-              <SelectContent>
-                {courses.map((course) => (
-                  <SelectItem key={course.id} value={course.id}>
-                    {course.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Course Selection - Hide if only one course */}
+          {courses.length > 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="course">
+                Course <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={formData.course_id}
+                onValueChange={(value) => handleChange('course_id', value)}
+                disabled={loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a course" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {courses.length === 1 && (
+            <div className="space-y-2">
+              <Label>Course</Label>
+              <Input
+                value={courses[0].title}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+          )}
 
           {/* Description */}
           <div className="space-y-2">

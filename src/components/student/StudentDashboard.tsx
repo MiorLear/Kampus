@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
@@ -40,16 +41,47 @@ interface UserProfile {
 
 interface StudentDashboardProps {
   user: UserProfile;
+  defaultTab?: string;
 }
 
-export function StudentDashboard({ user }: StudentDashboardProps) {
-  const [activeTab, setActiveTab] = useState('overview');
+export function StudentDashboard({ user, defaultTab }: StudentDashboardProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(defaultTab || 'overview');
+
+  // Sync activeTab with URL
+  useEffect(() => {
+    const pathToTab: Record<string, string> = {
+      '/mycourses': 'courses',
+      '/assignments': 'assignments',
+      '/browse': 'browse',
+    };
+    const tab = pathToTab[location.pathname];
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [location.pathname, activeTab]);
+
+  // Handle tab change - update URL
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const tabToPath: Record<string, string> = {
+      'overview': '/dashboard',
+      'courses': '/mycourses',
+      'assignments': '/assignments',
+      'browse': '/browse',
+    };
+    const path = tabToPath[value];
+    if (path) {
+      navigate(path, { replace: true });
+    }
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [courseModules, setCourseModules] = useState<CourseModule[]>([]);
   
-  const { enrollments, loading: enrollmentsLoading } = useEnrollments(user.id);
-  const { courses: allCourses, loading: coursesLoading } = useCourses();
+  const { enrollments, loading: enrollmentsLoading, refreshEnrollments } = useEnrollments(user.id);
+  const { courses: allCourses, loading: coursesLoading, refreshCourses } = useCourses();
   const { submissions, loading: submissionsLoading } = useSubmissions(undefined, user.id);
   
   const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
@@ -80,74 +112,100 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
 
   useEffect(() => {
     const loadData = async () => {
-      if (allCourses.length > 0) {
-        const enrolledCourseIds = enrollments.map(e => e.course_id);
-        
-        // Get enrolled courses with details
-        if (enrollments.length > 0) {
-          const enrolled = await Promise.all(
-            enrollments.map(async (enrollment) => {
-              const course = allCourses.find(c => c.id === enrollment.course_id);
-              if (!course) return null;
-              
-              const teacher = await ApiService.getUser(course.teacher_id);
-              
-              // Load course progress
-              const courseProgress = await ApiService.getCourseProgress(user.id, course.id);
-              
-              return {
-                ...course,
-                enrollment,
-                teacherName: teacher?.name || 'Unknown',
-                progress: courseProgress?.progress_percentage || 0,
-                completedModules: courseProgress?.completed_modules || 0,
-                totalModules: courseProgress?.total_modules || 0
-              };
-            })
+      try {
+        if (allCourses.length > 0) {
+          const enrolledCourseIds = enrollments.map(e => e.course_id);
+          
+          // Get enrolled courses with details
+          if (enrollments.length > 0) {
+            const enrolled = await Promise.all(
+              enrollments.map(async (enrollment) => {
+                try {
+                  const course = allCourses.find(c => c.id === enrollment.course_id);
+                  if (!course) return null;
+                  
+                  const teacher = await ApiService.getUser(course.teacher_id).catch(() => null);
+                  
+                  // Load course progress
+                  const courseProgress = await ApiService.getCourseProgress(user.id, course.id).catch(() => null);
+                  
+                  return {
+                    ...course,
+                    enrollment,
+                    teacherName: teacher?.name || 'Unknown',
+                    progress: courseProgress?.progress_percentage || 0,
+                    completedModules: courseProgress?.completed_modules || 0,
+                    totalModules: courseProgress?.total_modules || 0
+                  };
+                } catch (error) {
+                  console.error('Error loading enrolled course:', error);
+                  return null;
+                }
+              })
+            );
+            
+            setEnrolledCourses(enrolled.filter(c => c !== null));
+          } else {
+            setEnrolledCourses([]);
+          }
+          
+          // Get available courses
+          const available = await Promise.all(
+            allCourses
+              .filter(c => !enrolledCourseIds.includes(c.id))
+              .map(async (course) => {
+                try {
+                  const teacher = await ApiService.getUser(course.teacher_id).catch(() => null);
+                  return {
+                    ...course,
+                    teacherName: teacher?.name || 'Unknown',
+                  };
+                } catch (error) {
+                  console.error('Error loading available course:', error);
+                  return {
+                    ...course,
+                    teacherName: 'Unknown',
+                  };
+                }
+              })
           );
           
-          setEnrolledCourses(enrolled.filter(c => c !== null));
-        } else {
-          setEnrolledCourses([]);
-        }
-        
-        // Get available courses
-        const available = await Promise.all(
-          allCourses
-            .filter(c => !enrolledCourseIds.includes(c.id))
-            .map(async (course) => {
-              const teacher = await ApiService.getUser(course.teacher_id);
-              return {
-                ...course,
-                teacherName: teacher?.name || 'Unknown',
-              };
-            })
-        );
-        
-        setAvailableCourses(available);
-        
-        // Get assignments for enrolled courses
-        if (enrolledCourseIds.length > 0) {
-          const assignmentsPromises = enrolledCourseIds.map(courseId =>
-            ApiService.getAssignmentsByCourse(courseId)
-          );
-          const allAssignments = (await Promise.all(assignmentsPromises)).flat();
+          setAvailableCourses(available);
           
-          // Filter upcoming assignments
-          const upcoming = allAssignments
-            .filter(a => a.due_date && !isOverdue(a.due_date))
-            .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
-            .slice(0, 5);
-          
-          setUpcomingAssignments(upcoming);
-        } else {
-          setUpcomingAssignments([]);
+          // Get assignments for enrolled courses
+          if (enrolledCourseIds.length > 0) {
+            try {
+              const assignmentsPromises = enrolledCourseIds.map(courseId =>
+                ApiService.getAssignmentsByCourse(courseId).catch(() => [])
+              );
+              const allAssignments = (await Promise.all(assignmentsPromises)).flat();
+              
+              // Filter upcoming assignments
+              const upcoming = allAssignments
+                .filter(a => a.due_date && !isOverdue(a.due_date))
+                .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
+                .slice(0, 5);
+              
+              setUpcomingAssignments(upcoming);
+            } catch (error) {
+              console.error('Error loading assignments:', error);
+              setUpcomingAssignments([]);
+            }
+          } else {
+            setUpcomingAssignments([]);
+          }
         }
+      } catch (error) {
+        console.error('Error in loadData:', error);
+        // Set empty arrays to prevent crashes
+        setEnrolledCourses([]);
+        setAvailableCourses([]);
+        setUpcomingAssignments([]);
       }
     };
 
     loadData();
-  }, [enrollments, allCourses]);
+  }, [enrollments, allCourses, user.id]);
 
   const handleEnroll = async (courseId: string) => {
     try {
@@ -162,8 +220,9 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
 
       toast.success(`Successfully enrolled in ${course.title}`);
       
-      // Refresh the page or update state
-      window.location.reload();
+      // Refresh enrollments and courses reactively - stays on same route
+      refreshEnrollments();
+      refreshCourses();
     } catch (error: any) {
       toast.error('Failed to enroll in course');
       console.error(error);
@@ -260,7 +319,7 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
       </div>
 
       {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="courses">My Courses</TabsTrigger>

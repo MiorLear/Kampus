@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import {
@@ -42,13 +43,195 @@ interface UserProfile {
 
 interface AdminDashboardProps {
   user: UserProfile;
+  defaultTab?: string;
 }
 
-export function AdminDashboard({ user }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState('overview');
+interface TabItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  path: string;
+}
+
+// Define tabs outside component to avoid recreation
+const ADMIN_TABS: Omit<TabItem, 'icon'>[] = [
+  { id: 'overview', label: 'Overview', value: 'overview', path: '/admin/overview' },
+  { id: 'users', label: 'Users', value: 'users', path: '/admin/users' },
+  { id: 'courses', label: 'Courses', value: 'courses', path: '/admin/courses' },
+  { id: 'assignments', label: 'Assignments', value: 'assignments', path: '/admin/assignments' },
+  { id: 'enrollments', label: 'Enrollments', value: 'enrollments', path: '/admin/enrollments' },
+  { id: 'messages', label: 'Messages', value: 'messages', path: '/admin/messages' },
+  { id: 'activity', label: 'Activity Logs', value: 'activity', path: '/admin/activity' },
+  { id: 'reports', label: 'Reports', value: 'reports', path: '/admin/reports' },
+  { id: 'settings', label: 'Settings', value: 'settings', path: '/admin/settings' },
+];
+
+export function AdminDashboard({ user, defaultTab }: AdminDashboardProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(defaultTab || 'overview');
   
-  const { users, loading: usersLoading } = useUsers();
-  const { courses, loading: coursesLoading } = useCourses();
+  
+  const tabsListRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  
+  const { users, loading: usersLoading, refreshUsers } = useUsers();
+  const { courses, loading: coursesLoading, refreshCourses } = useCourses();
+
+  // Create tabs with icons - use useMemo to prevent recreation on every render
+  const allTabs: TabItem[] = useMemo(() => [
+    { ...ADMIN_TABS[0], icon: <Activity className="h-4 w-4" /> },
+    { ...ADMIN_TABS[1], icon: <Users className="h-4 w-4" /> },
+    { ...ADMIN_TABS[2], icon: <BookOpen className="h-4 w-4" /> },
+    { ...ADMIN_TABS[3], icon: <FileText className="h-4 w-4" /> },
+    { ...ADMIN_TABS[4], icon: <UserCheck className="h-4 w-4" /> },
+    { ...ADMIN_TABS[5], icon: <MessageSquare className="h-4 w-4" /> },
+    { ...ADMIN_TABS[6], icon: <ClipboardList className="h-4 w-4" /> },
+    { ...ADMIN_TABS[7], icon: <Download className="h-4 w-4" /> },
+    { ...ADMIN_TABS[8], icon: <Settings className="h-4 w-4" /> },
+  ], []);
+
+  // Initialize with all tabs visible, will be calculated on mount
+  const [visibleTabs, setVisibleTabs] = useState<string[]>(ADMIN_TABS.map(t => t.value));
+  const [hiddenTabs, setHiddenTabs] = useState<string[]>([]);
+
+  // Sync activeTab with URL
+  useEffect(() => {
+    const pathToTab = allTabs.find(tab => tab.path === location.pathname);
+    if (pathToTab && pathToTab.value !== activeTab) {
+      setActiveTab(pathToTab.value);
+    }
+  }, [location.pathname, allTabs, activeTab]);
+
+  // Initialize from defaultTab or URL
+  useEffect(() => {
+    if (defaultTab) {
+      setActiveTab(defaultTab);
+    } else {
+      const pathToTab = allTabs.find(tab => tab.path === location.pathname);
+      if (pathToTab) {
+        setActiveTab(pathToTab.value);
+      }
+    }
+  }, [defaultTab, location.pathname, allTabs]);
+
+  // Handle tab change - update URL
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const tab = allTabs.find(t => t.value === value);
+    if (tab) {
+      navigate(tab.path, { replace: true });
+    }
+  };
+
+  // Dynamic tab visibility based on screen size
+  useEffect(() => {
+    const updateTabVisibility = () => {
+      if (!tabsListRef.current || !tabsRef.current) {
+        return false;
+      }
+
+      const containerWidth = tabsRef.current.offsetWidth;
+      if (containerWidth === 0) {
+        return false;
+      }
+
+      const dropdownButtonWidth = 120; // Approximate width of dropdown button
+      const availableWidth = containerWidth - dropdownButtonWidth - 32; // 32px for padding/margins
+      
+      const tabsList = tabsListRef.current;
+      const tabsListElement = tabsList?.querySelector('[data-slot="tabs-list"]') as HTMLElement;
+      if (!tabsListElement) {
+        return false;
+      }
+      
+      const tabElements = Array.from(tabsListElement.children) as HTMLElement[];
+      if (tabElements.length === 0) {
+        return false;
+      }
+      
+      let totalWidth = 0;
+      const newVisibleTabs: string[] = [];
+      const newHiddenTabs: string[] = [];
+
+      for (const tab of allTabs) {
+        const tabElement = tabElements.find(el => el.getAttribute('data-value') === tab.value);
+        if (tabElement) {
+          const tabWidth = tabElement.offsetWidth || 100; // Fallback width
+          if (totalWidth + tabWidth <= availableWidth) {
+            totalWidth += tabWidth;
+            newVisibleTabs.push(tab.value);
+          } else {
+            newHiddenTabs.push(tab.value);
+          }
+        } else {
+          // If tab is not rendered yet, estimate width
+          const estimatedWidth = tab.label.length * 8 + 40; // Rough estimate
+          if (totalWidth + estimatedWidth <= availableWidth) {
+            totalWidth += estimatedWidth;
+            newVisibleTabs.push(tab.value);
+          } else {
+            newHiddenTabs.push(tab.value);
+          }
+        }
+      }
+
+      // Always show at least the first 3 tabs
+      if (newVisibleTabs.length < 3) {
+        newVisibleTabs.push(...newHiddenTabs.splice(0, 3 - newVisibleTabs.length));
+      }
+
+      // Only update if values actually changed to prevent infinite loops
+      setVisibleTabs(prev => {
+        const prevSorted = [...prev].sort();
+        const newSorted = [...newVisibleTabs].sort();
+        if (JSON.stringify(prevSorted) !== JSON.stringify(newSorted)) {
+          return newVisibleTabs;
+        }
+        return prev;
+      });
+      
+      setHiddenTabs(prev => {
+        const prevSorted = [...prev].sort();
+        const newSorted = [...newHiddenTabs].sort();
+        if (JSON.stringify(prevSorted) !== JSON.stringify(newSorted)) {
+          return newHiddenTabs;
+        }
+        return prev;
+      });
+      
+      return true;
+    };
+
+    // Use multiple attempts to ensure DOM is ready
+    const timeouts: NodeJS.Timeout[] = [];
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    const tryUpdate = () => {
+      attempts++;
+      const success = updateTabVisibility();
+      if (!success && attempts < maxAttempts) {
+        timeouts.push(setTimeout(tryUpdate, 50));
+      }
+    };
+    
+    // Start trying immediately
+    tryUpdate();
+    
+    // Also try after next frame
+    requestAnimationFrame(() => {
+      tryUpdate();
+    });
+    
+    window.addEventListener('resize', updateTabVisibility);
+    
+    return () => {
+      window.removeEventListener('resize', updateTabVisibility);
+      timeouts.forEach(timeout => clearTimeout(timeout));
+    };
+  }, [allTabs]); // Remove activeTab dependency to prevent infinite loops
 
   if (usersLoading || coursesLoading) {
     return (
@@ -69,57 +252,63 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
       </div>
 
       {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <TabsList>
-            <TabsTrigger value="overview">
-              <Activity className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="users">
-              <Users className="h-4 w-4" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger value="courses">
-              <BookOpen className="h-4 w-4" />
-              Courses
-            </TabsTrigger>
-          </TabsList>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <div ref={tabsRef} className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div ref={tabsListRef} className="flex-1 min-w-0">
+            <TabsList className="w-full">
+            {allTabs.map((tab) => {
+              const isVisible = visibleTabs.length === 0 || visibleTabs.includes(tab.value);
+              if (!isVisible) return null;
+              const isActive = activeTab === tab.value;
+              return (
+                  <TabsTrigger 
+                    key={tab.id}
+                    value={tab.value}
+                    data-value={tab.value}
+                    className={isActive 
+                      ? '!bg-primary !text-primary-foreground !shadow-md !font-semibold' 
+                      : ''
+                    }
+                    style={isActive ? { 
+                      backgroundColor: 'var(--primary)', 
+                      color: 'var(--primary-foreground)',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06)',
+                      fontWeight: '600',
+                      zIndex: 1
+                    } : {}}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </TabsTrigger>
+                );
+              }).filter(Boolean)}
+            </TabsList>
+          </div>
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <MoreHorizontal className="h-4 w-4 mr-2" />
-                More
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setActiveTab('assignments')}>
-                <FileText className="mr-2 h-4 w-4" />
-                Assignments
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setActiveTab('enrollments')}>
-                <UserCheck className="mr-2 h-4 w-4" />
-                Enrollments
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setActiveTab('messages')}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Messages
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setActiveTab('activity')}>
-                <ClipboardList className="mr-2 h-4 w-4" />
-                Activity Logs
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setActiveTab('reports')}>
-                <Download className="mr-2 h-4 w-4" />
-                Reports
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setActiveTab('settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {hiddenTabs.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <MoreHorizontal className="h-4 w-4 mr-2" />
+                  More
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {allTabs
+                  .filter(tab => hiddenTabs.includes(tab.value))
+                  .map((tab) => (
+                    <DropdownMenuItem 
+                      key={tab.id}
+                      onClick={() => handleTabChange(tab.value)}
+                      className={activeTab === tab.value ? 'bg-primary/10 font-semibold' : ''}
+                    >
+                      {tab.icon}
+                      <span className="ml-2">{tab.label}</span>
+                    </DropdownMenuItem>
+                  ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
         <TabsContent value="overview" className="space-y-4">
           <AdminAnalytics users={users} courses={courses} />
@@ -130,7 +319,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         </TabsContent>
 
         <TabsContent value="courses">
-          <CourseManagement courses={courses} users={users} />
+          <CourseManagement courses={courses} users={users} onCourseUpdate={refreshCourses} />
         </TabsContent>
 
         <TabsContent value="assignments">
@@ -160,3 +349,6 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     </div>
   );
 }
+
+// Default export for lazy loading
+export default AdminDashboard;

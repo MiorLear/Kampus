@@ -61,12 +61,13 @@ def create_app() -> Flask:
     init_firebase()
 
     # Register API blueprints (must be after CORS initialization)
-    app.register_blueprint(courses_bp, url_prefix="/courses")
-    app.register_blueprint(modules_bp, url_prefix="/modules")
-    app.register_blueprint(enrollments_bp, url_prefix="/enrollments")
-    app.register_blueprint(progress_bp, url_prefix="/progress")
-    app.register_blueprint(users_bp, url_prefix="/users")
-    app.register_blueprint(assignments_bp, url_prefix="/assignments")
+    # All routes are prefixed with /api to match frontend expectations
+    app.register_blueprint(courses_bp, url_prefix="/api/courses")
+    app.register_blueprint(modules_bp, url_prefix="/api/modules")
+    app.register_blueprint(enrollments_bp, url_prefix="/api/enrollments")
+    app.register_blueprint(progress_bp, url_prefix="/api/progress")
+    app.register_blueprint(users_bp, url_prefix="/api/users")
+    app.register_blueprint(assignments_bp, url_prefix="/api/assignments")
 
     @app.get("/")
     def api_index():
@@ -76,40 +77,40 @@ def create_app() -> Flask:
                 "message": "Kampus API",
                 "endpoints": {
                     "users": [
-                        "/users",
-                        "  /users?role=<role>",
-                        "/users/<user_id>",
-                        "PUT /users/<user_id>",
-                        "DELETE /users/<user_id>",
-                        "/users/stats",
+                        "/api/users",
+                        "  /api/users?role=<role>",
+                        "/api/users/<user_id>",
+                        "PUT /api/users/<user_id>",
+                        "DELETE /api/users/<user_id>",
+                        "/api/users/stats",
                     ],
                     "courses": [
-                        "/courses",
-                        "/courses?teacher_id=<teacher_id>",
+                        "/api/courses",
+                        "/api/courses?teacher_id=<teacher_id>",
                     ],
                     "modules": [
-                        "/modules/courses/<course_id>/modules",
+                        "/api/modules/courses/<course_id>/modules",
                     ],
                     "enrollments": [
-                        "/enrollments?student_id=<user_id>",
-                        "/enrollments?course_id=<course_id>",
-                        "POST /enrollments",
+                        "/api/enrollments?student_id=<user_id>",
+                        "/api/enrollments?course_id=<course_id>",
+                        "POST /api/enrollments",
                     ],
                     "progress": [
-                        "POST /progress/access",
-                        "POST /progress",
-                        "POST /progress/complete",
-                        "/progress/module/<user_id>/<course_id>/<module_id>",
-                        "/progress/course/<user_id>/<course_id>",
-                        "/progress/course/<user_id>/<course_id>/summary",
+                        "POST /api/progress/access",
+                        "POST /api/progress",
+                        "POST /api/progress/complete",
+                        "/api/progress/module/<user_id>/<course_id>/<module_id>",
+                        "/api/progress/course/<user_id>/<course_id>",
+                        "/api/progress/course/<user_id>/<course_id>/summary",
                     ],
                     "assignments": [
-                        "/assignments",
-                        "/assignments?course_id=<course_id>",
-                        "/assignments/<assignment_id>",
-                        "POST /assignments",
-                        "PUT /assignments/<assignment_id>",
-                        "DELETE /assignments/<assignment_id>",
+                        "/api/assignments",
+                        "/api/assignments?course_id=<course_id>",
+                        "/api/assignments/<assignment_id>",
+                        "POST /api/assignments",
+                        "PUT /api/assignments/<assignment_id>",
+                        "DELETE /api/assignments/<assignment_id>",
                     ],
                 },
             }

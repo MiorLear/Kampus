@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
@@ -11,14 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from '../ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '../ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,23 +33,29 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { Search, Eye, Trash2, MoreVertical, FileText, Users, Calendar, Edit, Plus } from 'lucide-react';
+import { Search, Eye, Trash2, MoreVertical, Edit, Plus, FileText } from 'lucide-react';
 import { Assignment, Course, User } from '../../services/firestore.service';
 import { ApiService } from '../../services/api.service';
 import { toast } from 'sonner';
 import { formatDate } from '../../utils/firebase-helpers';
 import { AssignmentEditor } from './AssignmentEditor';
 
-interface AssignmentManagementProps {
-  courses: Course[];
+interface CourseAssignmentsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  course: Course | null;
   users: User[];
 }
 
-export function AssignmentManagement({ courses, users }: AssignmentManagementProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [courseFilter, setCourseFilter] = useState<string>('all');
+export function CourseAssignmentsDialog({
+  open,
+  onOpenChange,
+  course,
+  users,
+}: CourseAssignmentsDialogProps) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -59,50 +63,34 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
 
   useEffect(() => {
-    loadAssignments();
-  }, []); // Only load once on mount, not when courses change
+    if (open && course) {
+      loadAssignments();
+    }
+  }, [open, course]);
 
   const loadAssignments = async () => {
+    if (!course) return;
+    
     try {
       setLoading(true);
-      // Use getAllAssignments to get all assignments in a single call
-      const allAssignments = await ApiService.getAllAssignments();
-      setAssignments(allAssignments || []);
+      const courseAssignments = await ApiService.getAssignmentsByCourse(course.id);
+      setAssignments(courseAssignments || []);
     } catch (error) {
       console.error('Error loading assignments:', error);
       toast.error('Failed to load assignments');
-      setAssignments([]); // Set empty array on error
+      setAssignments([]);
     } finally {
       setLoading(false);
     }
   };
 
   const filteredAssignments = assignments.filter(assignment => {
-    const course = courses.find(c => c.id === assignment.course_id);
-    const teacher = users.find(u => u.id === course?.teacher_id);
-    
     const matchesSearch = (assignment.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (assignment.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (course?.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (teacher?.name || '').toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCourse = courseFilter === 'all' || assignment.course_id === courseFilter;
-    
-    return matchesSearch && matchesCourse;
+                         (assignment.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
   });
 
-  const getCourseName = (courseId: string) => {
-    const course = courses.find(c => c.id === courseId);
-    return course?.title || 'Unknown Course';
-  };
-
-  const getTeacherName = (courseId: string) => {
-    const course = courses.find(c => c.id === courseId);
-    const teacher = users.find(u => u.id === course?.teacher_id);
-    return teacher?.name || 'Unknown Teacher';
-  };
-
-  const handleViewDetails = async (assignment: Assignment) => {
+  const handleViewDetails = (assignment: Assignment) => {
     setSelectedAssignment(assignment);
     setShowDetailsDialog(true);
   };
@@ -124,7 +112,8 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
       await ApiService.deleteAssignment(selectedAssignment.id);
       toast.success('Assignment deleted successfully');
       setShowDeleteDialog(false);
-      loadAssignments();
+      setSelectedAssignment(null);
+      loadAssignments(); // Refresh reactively
     } catch (error) {
       toast.error('Failed to delete assignment');
       console.error(error);
@@ -132,7 +121,7 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
   };
 
   const handleEditorSave = () => {
-    loadAssignments();
+    loadAssignments(); // Refresh reactively
     setShowEditorDialog(false);
     setEditingAssignment(null);
   };
@@ -150,88 +139,78 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
     return <Badge variant="secondary">Upcoming</Badge>;
   };
 
+  if (!course) return null;
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <CardTitle>Assignment Management</CardTitle>
-            <CardDescription>
-              Monitor and manage all assignments across courses
-            </CardDescription>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={handleCreateAssignment} className="sm:mr-2">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Assignment
-            </Button>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search assignments..."
-                className="pl-10 w-full sm:w-[250px]"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="!max-w-[95vw] sm:!max-w-6xl max-h-[95vh] overflow-y-auto w-[95vw] sm:w-auto">
+          <DialogHeader>
+            <DialogTitle>Manage Assignments - {course.title}</DialogTitle>
+            <DialogDescription>
+              Create, edit, and manage assignments for this course
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center justify-between">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search assignments..."
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Button onClick={handleCreateAssignment}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Assignment
+              </Button>
             </div>
-            <select
-              value={courseFilter}
-              onChange={(e) => setCourseFilter(e.target.value)}
-              className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-            >
-              <option value="all">All Courses</option>
-              {courses.map(course => (
-                <option key={course.id} value={course.id}>
-                  {course.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="text-center py-8 text-muted-foreground">
-            Loading assignments...
-          </div>
-        ) : (
-          <>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Assignment</TableHead>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Teacher</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAssignments.length === 0 ? (
+
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Loading assignments...
+              </div>
+            ) : filteredAssignments.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {assignments.length === 0 
+                  ? 'No assignments found for this course'
+                  : 'No assignments match your search'}
+              </div>
+            ) : (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
-                        No assignments found
-                      </TableCell>
+                      <TableHead>Title</TableHead>
+                      <TableHead className="hidden sm:table-cell">Due Date</TableHead>
+                      <TableHead className="hidden md:table-cell">Status</TableHead>
+                      <TableHead className="hidden lg:table-cell">Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredAssignments.map((assignment) => (
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAssignments.map((assignment) => (
                       <TableRow key={assignment.id}>
                         <TableCell>
                           <div>
                             <div className="font-medium">{assignment.title}</div>
-                            <div className="text-sm text-muted-foreground line-clamp-1">
+                            <div className="text-sm text-muted-foreground line-clamp-1 max-w-[300px]">
                               {assignment.description}
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>{getCourseName(assignment.course_id)}</TableCell>
-                        <TableCell>{getTeacherName(assignment.course_id)}</TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           {assignment.due_date ? formatDate(assignment.due_date) : 'No due date'}
                         </TableCell>
-                        <TableCell>{getStatusBadge(assignment.due_date)}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {getStatusBadge(assignment.due_date)}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {assignment.created_at ? formatDate(assignment.created_at) : '-'}
+                        </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -246,7 +225,7 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleEditAssignment(assignment)}>
                                 <Edit className="mr-2 h-4 w-4" />
-                                Edit Assignment
+                                Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
@@ -262,65 +241,69 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
                           </DropdownMenu>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
 
-            <div className="mt-4 text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               Showing {filteredAssignments.length} of {assignments.length} assignments
             </div>
-          </>
-        )}
-      </CardContent>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Assignment Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{selectedAssignment?.title}</DialogTitle>
-            <DialogDescription>Assignment details and statistics</DialogDescription>
+            <DialogDescription>Assignment details</DialogDescription>
           </DialogHeader>
           {selectedAssignment && (
             <div className="space-y-4">
               <div>
-                <h4 className="mb-2">Description</h4>
+                <h4 className="mb-2 font-medium">Description</h4>
                 <p className="text-sm text-muted-foreground">
-                  {selectedAssignment.description}
+                  {selectedAssignment.description || 'No description'}
                 </p>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h4 className="mb-1">Course</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {getCourseName(selectedAssignment.course_id)}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="mb-1">Teacher</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {getTeacherName(selectedAssignment.course_id)}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="mb-1">Due Date</h4>
+                  <h4 className="mb-1 font-medium">Due Date</h4>
                   <p className="text-sm text-muted-foreground">
                     {selectedAssignment.due_date ? formatDate(selectedAssignment.due_date) : 'No due date'}
                   </p>
                 </div>
                 <div>
-                  <h4 className="mb-1">Created</h4>
+                  <h4 className="mb-1 font-medium">Max Points</h4>
                   <p className="text-sm text-muted-foreground">
-                    {formatDate(selectedAssignment.created_at)}
+                    {selectedAssignment.max_points || 100}
                   </p>
                 </div>
               </div>
+              {selectedAssignment.instructions && (
+                <div>
+                  <h4 className="mb-2 font-medium">Instructions</h4>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {selectedAssignment.instructions}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Assignment Editor Dialog */}
+      <AssignmentEditor
+        open={showEditorDialog}
+        onOpenChange={setShowEditorDialog}
+        assignment={editingAssignment}
+        courses={course ? [course] : []}
+        onSave={handleEditorSave}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -328,7 +311,7 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the assignment "{selectedAssignment?.title}" and all associated submissions. This action cannot be undone.
+              This will permanently delete the assignment "{selectedAssignment?.title}". This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -339,15 +322,7 @@ export function AssignmentManagement({ courses, users }: AssignmentManagementPro
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Assignment Editor Dialog */}
-      <AssignmentEditor
-        open={showEditorDialog}
-        onOpenChange={setShowEditorDialog}
-        assignment={editingAssignment}
-        courses={courses}
-        onSave={handleEditorSave}
-      />
-    </Card>
+    </>
   );
 }
+

@@ -22,11 +22,13 @@ export function useCourses(teacherId?: string) {
     const fetchCourses = async () => {
       try {
         setLoading(true);
+        setError(null);
         const data = await ApiService.getAllCourses(teacherId);
-        setCourses(data);
+        setCourses(data || []);
       } catch (err: any) {
         console.error('Error loading courses:', err);
         setError(err.message || 'Failed to load courses');
+        setCourses([]); // Set empty array on error to prevent crashes
       } finally {
         setLoading(false);
       }
@@ -100,6 +102,7 @@ export function useEnrollments(studentId?: string, courseId?: string) {
     const fetchEnrollments = async () => {
       try {
         setLoading(true);
+        setError(null);
         let data: Enrollment[];
         if (studentId) {
           data = await ApiService.getEnrollmentsByStudent(studentId);
@@ -108,10 +111,11 @@ export function useEnrollments(studentId?: string, courseId?: string) {
         } else {
           data = [];
         }
-        setEnrollments(data);
+        setEnrollments(data || []);
       } catch (err: any) {
         console.error('Error loading enrollments:', err);
         setError(err.message || 'Failed to load enrollments');
+        setEnrollments([]); // Set empty array on error to prevent crashes
       } finally {
         setLoading(false);
       }
@@ -156,10 +160,13 @@ export function useAssignments(courseId?: string) {
     const fetchAssignments = async () => {
       try {
         setLoading(true);
+        setError(null);
         const data = await ApiService.getAssignmentsByCourse(courseId);
-        setAssignments(data);
+        setAssignments(data || []);
       } catch (err: any) {
-        setError(err.message);
+        console.error('Error loading assignments:', err);
+        setError(err.message || 'Failed to load assignments');
+        setAssignments([]); // Set empty array on error to prevent crashes
       } finally {
         setLoading(false);
       }
@@ -192,6 +199,7 @@ export function useSubmissions(assignmentId?: string, studentId?: string) {
     const fetchSubmissions = async () => {
       try {
         setLoading(true);
+        setError(null);
         let data: Submission[];
         if (assignmentId) {
           data = await ApiService.getSubmissionsByAssignment(assignmentId);
@@ -200,9 +208,11 @@ export function useSubmissions(assignmentId?: string, studentId?: string) {
         } else {
           data = [];
         }
-        setSubmissions(data);
+        setSubmissions(data || []);
       } catch (err: any) {
-        setError(err.message);
+        console.error('Error loading submissions:', err);
+        setError(err.message || 'Failed to load submissions');
+        setSubmissions([]); // Set empty array on error to prevent crashes
       } finally {
         setLoading(false);
       }
