@@ -1,9 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { useDebounce } from '../../hooks/useDebounce';
+import { usePagination } from '../../hooks/usePagination';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '../ui/pagination';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
 import {
   Table,
   TableBody,
@@ -21,13 +39,6 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '../ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,23 +63,48 @@ import {
 
 interface UserManagementProps {
   users: User[];
+  onUserUpdate?: () => void;
 }
 
-export function UserManagement({ users }: UserManagementProps) {
+export function UserManagement({ users, onUserUpdate }: UserManagementProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'teacher' | 'admin'>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editedUser, setEditedUser] = useState<Partial<User>>({});
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Debounce search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
-      (user.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (user.email || '').toLowerCase().includes(searchQuery.toLowerCase());
+      (user.name || '').toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+      (user.email || '').toLowerCase().includes(debouncedSearchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
+
+  // Pagination
+  const {
+    paginatedItems: paginatedUsers,
+    currentPage,
+    totalPages,
+    goToPage,
+    nextPage,
+    prevPage,
+    setItemsPerPage: setPagItemsPerPage,
+    startIndex,
+    endIndex,
+    totalItems,
+  } = usePagination(filteredUsers, { itemsPerPage });
+
+  // Reset to page 1 when filters change (only when they actually change, not on every render)
+  useEffect(() => {
+    goToPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchQuery, roleFilter]);
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
@@ -88,7 +124,7 @@ export function UserManagement({ users }: UserManagementProps) {
       await ApiService.updateUser(selectedUser.id, editedUser);
       toast.success('User updated successfully');
       setShowEditDialog(false);
-      window.location.reload();
+      onUserUpdate?.();
     } catch (error) {
       toast.error('Failed to update user');
       console.error(error);
@@ -98,11 +134,35 @@ export function UserManagement({ users }: UserManagementProps) {
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
 
+    // Guardar datos del usuario para undo
+    const userToDelete = { ...selectedUser };
+
     try {
       await ApiService.deleteUser(selectedUser.id);
-      toast.success('User deleted successfully');
+      
+      // Toast con opción de undo
+      toast.success('User deleted successfully', {
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              // Restaurar usuario (esto requiere un endpoint de restore o recrear)
+              // Por ahora, mostramos un mensaje de que la función requiere implementación en backend
+              toast.info('Undo functionality requires backend restore endpoint');
+              // TODO: Implementar restore cuando el backend lo soporte
+              // await ApiService.restoreUser(userToDelete);
+              // onUserUpdate?.();
+            } catch (error) {
+              toast.error('Failed to restore user');
+              console.error(error);
+            }
+          }
+        },
+        duration: 5000,
+      });
+      
       setShowDeleteDialog(false);
-      window.location.reload();
+      onUserUpdate?.();
     } catch (error) {
       toast.error('Failed to delete user');
       console.error(error);
@@ -169,14 +229,14 @@ export function UserManagement({ users }: UserManagementProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.length === 0 ? (
+              {paginatedUsers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">
                     No users found
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredUsers.map((user) => (
+                paginatedUsers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name || 'Unknown'}</TableCell>
                     <TableCell>{user.email || 'No email'}</TableCell>
@@ -189,7 +249,7 @@ export function UserManagement({ users }: UserManagementProps) {
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" aria-label="User actions menu">
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -218,14 +278,88 @@ export function UserManagement({ users }: UserManagementProps) {
           </Table>
         </div>
 
-        <div className="mt-4 text-sm text-muted-foreground">
-          Showing {filteredUsers.length} of {users.length} users
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-muted-foreground">
+            Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} users
+          </div>
+          
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(value) => {
+                  const newItemsPerPage = parseInt(value, 10);
+                  setItemsPerPage(newItemsPerPage);
+                  setPagItemsPerPage(newItemsPerPage);
+                }}
+              >
+                <SelectTrigger className="w-[100px] h-9" aria-label="Items per page">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={prevPage}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <PaginationItem key={pageNum}>
+                        <PaginationLink
+                          onClick={() => goToPage(pageNum)}
+                          isActive={currentPage === pageNum}
+                          className="cursor-pointer"
+                        >
+                          {pageNum}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={nextPage}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </div>
       </CardContent>
 
       {/* Edit User Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] max-w-4xl w-[90vw] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>

@@ -11,6 +11,9 @@ from app.api.enrollments import enrollments_bp
 from app.api.progress import progress_bp
 from app.api.users import users_bp
 from app.api.assignments import assignments_bp
+from app.api.messages import messages_bp
+from app.api.submissions import submissions_bp
+from app.api.activity_logs import activity_logs_bp
 
 
 def create_app() -> Flask:
@@ -68,6 +71,9 @@ def create_app() -> Flask:
     app.register_blueprint(progress_bp, url_prefix="/api/progress")
     app.register_blueprint(users_bp, url_prefix="/api/users")
     app.register_blueprint(assignments_bp, url_prefix="/api/assignments")
+    app.register_blueprint(messages_bp, url_prefix="/api/messages")
+    app.register_blueprint(submissions_bp, url_prefix="/api/submissions")
+    app.register_blueprint(activity_logs_bp, url_prefix="/api/activity-logs")
 
     @app.get("/")
     def api_index():
@@ -111,6 +117,31 @@ def create_app() -> Flask:
                         "POST /api/assignments",
                         "PUT /api/assignments/<assignment_id>",
                         "DELETE /api/assignments/<assignment_id>",
+                    ],
+                    "messages": [
+                        "/api/messages",
+                        "/api/messages?sender_id=<sender_id>",
+                        "/api/messages?recipient_id=<recipient_id>",
+                        "/api/messages/<message_id>",
+                        "POST /api/messages",
+                        "PUT /api/messages/<message_id>",
+                        "DELETE /api/messages/<message_id>",
+                    ],
+                    "submissions": [
+                        "/api/submissions",
+                        "/api/submissions?assignment_id=<assignment_id>",
+                        "/api/submissions?student_id=<student_id>",
+                        "/api/submissions/<submission_id>",
+                        "POST /api/submissions",
+                        "PUT /api/submissions/<submission_id>",
+                        "DELETE /api/submissions/<submission_id>",
+                    ],
+                    "activity_logs": [
+                        "/api/activity-logs",
+                        "/api/activity-logs?limit=<limit>",
+                        "/api/activity-logs?user_id=<user_id>",
+                        "/api/activity-logs/<log_id>",
+                        "POST /api/activity-logs",
                     ],
                 },
             }

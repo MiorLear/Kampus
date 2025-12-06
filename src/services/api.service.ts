@@ -8,7 +8,7 @@ import { User, Course } from './firestore.service';
  */
 export class ApiService {
   // ========== USERS ==========
-  
+
   static async getUser(userId: string): Promise<User | null> {
     try {
       const response = await apiClient.get(API_ENDPOINTS.USER_BY_ID(userId));
@@ -49,7 +49,7 @@ export class ApiService {
   }
 
   // ========== COURSES ==========
-  
+
   static async getAllCourses(teacherId?: string): Promise<Course[]> {
     try {
       const params = teacherId ? { teacher_id: teacherId } : {};
@@ -86,13 +86,28 @@ export class ApiService {
   }
 
   // ========== MODULES ==========
-  
+
   static async getCourseModules(courseId: string): Promise<any[]> {
     try {
       const response = await apiClient.get(API_ENDPOINTS.COURSE_MODULES(courseId));
-      return response.data;
-    } catch (error) {
-      throw error;
+      // Ensure we always return an array, even if API returns null/undefined
+      if (!response.data) {
+        return [];
+      }
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      // If it's not an array, return empty array
+      console.warn('API returned non-array data for modules:', response.data);
+      return [];
+    } catch (error: any) {
+      // If 404 or empty response, return empty array instead of throwing
+      if (error.response?.status === 404) {
+        return [];
+      }
+      // For other errors, log and return empty array to prevent crashes
+      console.warn('Error fetching course modules:', error);
+      return [];
     }
   }
 
@@ -122,7 +137,7 @@ export class ApiService {
   }
 
   // ========== PROGRESS ==========
-  
+
   static async saveModuleAccess(
     userId: string,
     courseId: string,
@@ -205,7 +220,7 @@ export class ApiService {
   }
 
   // ========== ENROLLMENTS ==========
-  
+
   static async getEnrollmentsByStudent(studentId: string): Promise<any[]> {
     try {
       const response = await apiClient.get(API_ENDPOINTS.ENROLLMENTS, {
@@ -239,13 +254,20 @@ export class ApiService {
 
   static async enrollStudent(data: { student_id: string; course_id: string; progress?: number }): Promise<string> {
     try {
-      // student_id viene del token, no se envía
-      const response = await apiClient.post(API_ENDPOINTS.ENROLLMENTS, {
+      const payload = {
+        student_id: data.student_id,  // TODO: Extraer del token cuando se implemente middleware de auth en backend Python
         course_id: data.course_id,
         progress: data.progress || 0
-      });
+      };
+      console.log('[ApiService] Enrolling student - Payload:', payload);
+      console.log('[ApiService] Endpoint:', API_ENDPOINTS.ENROLLMENTS);
+
+      const response = await apiClient.post(API_ENDPOINTS.ENROLLMENTS, payload);
+      console.log('[ApiService] Enrollment successful - Response:', response.data);
       return response.data.id;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[ApiService] Enrollment error:', error);
+      console.error('[ApiService] Error response:', error?.response?.data);
       throw error;
     }
   }
@@ -255,7 +277,7 @@ export class ApiService {
   }
 
   // ========== ASSIGNMENTS ==========
-  
+
   static async getAssignmentsByCourse(courseId: string): Promise<any[]> {
     try {
       const response = await apiClient.get(API_ENDPOINTS.ASSIGNMENTS_BY_COURSE(courseId));
@@ -300,7 +322,16 @@ export class ApiService {
   }
 
   // ========== SUBMISSIONS ==========
-  
+
+  static async getAllSubmissions(): Promise<any[]> {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.SUBMISSIONS);
+      return response.data || [];
+    } catch (error) {
+      return [];
+    }
+  }
+
   static async getSubmissionsByAssignment(assignmentId: string): Promise<any[]> {
     try {
       const response = await apiClient.get(API_ENDPOINTS.SUBMISSIONS_BY_ASSIGNMENT(assignmentId));
@@ -344,8 +375,18 @@ export class ApiService {
     await apiClient.delete(API_ENDPOINTS.SUBMISSION_BY_ID(submissionId));
   }
 
+  static async submitAssignment(assignmentId: string, submissionData: { answers: any; student_id: string }): Promise<void> {
+    const payload = {
+      assignment_id: assignmentId,
+      student_id: submissionData.student_id,
+      answers: submissionData.answers,
+      submitted_at: new Date().toISOString()
+    };
+    await apiClient.post(API_ENDPOINTS.SUBMISSIONS, payload);
+  }
+
   // ========== ANNOUNCEMENTS ==========
-  
+
   static async getAnnouncementsByCourse(courseId: string): Promise<any[]> {
     try {
       const response = await apiClient.get(`/announcements?course_id=${courseId}`);
@@ -381,7 +422,7 @@ export class ApiService {
   }
 
   // ========== MESSAGES ==========
-  
+
   static async getMessagesBetweenUsers(userId: string, otherUserId: string): Promise<any[]> {
     try {
       const response = await apiClient.get(`/messages?user_id=${userId}&other_user_id=${otherUserId}`);
@@ -391,21 +432,30 @@ export class ApiService {
     }
   }
 
+  static async getAllMessages(): Promise<any[]> {
+    try {
+      const response = await apiClient.get(`/messages`);
+      return response.data || [];
+    } catch (error) {
+      return [];
+    }
+  }
+
   static async getReceivedMessages(userId: string): Promise<any[]> {
     try {
       const response = await apiClient.get(`/messages?recipient_id=${userId}`);
-      return response.data;
+      return response.data || [];
     } catch (error) {
-      throw error;
+      return [];
     }
   }
 
   static async getSentMessages(userId: string): Promise<any[]> {
     try {
       const response = await apiClient.get(`/messages?sender_id=${userId}`);
-      return response.data;
+      return response.data || [];
     } catch (error) {
-      throw error;
+      return [];
     }
   }
 
@@ -449,7 +499,7 @@ export class ApiService {
   }
 
   // ========== ANALYTICS ==========
-  
+
   static async getStudentAnalytics(studentId: string): Promise<any> {
     try {
       const response = await apiClient.get(API_ENDPOINTS.ANALYTICS_STUDENT(studentId));
@@ -484,6 +534,41 @@ export class ApiService {
     } catch (error) {
       throw error;
     }
+  }
+
+  // ========== USER PROFILES ==========
+
+  static async createUserProfile(userId: string, profileData: any): Promise<any> {
+    const response = await apiClient.post(API_ENDPOINTS.USER_PROFILE_CREATE(userId), profileData);
+    return response.data;
+  }
+
+  static async updateStudentProfile(userId: string, updates: any): Promise<void> {
+    await apiClient.put(API_ENDPOINTS.USER_PROFILE_STUDENT(userId), updates);
+  }
+
+  static async updateTeacherProfile(userId: string, updates: any): Promise<void> {
+    await apiClient.put(API_ENDPOINTS.USER_PROFILE_TEACHER(userId), updates);
+  }
+
+  static async updateAdminProfile(userId: string, updates: any): Promise<void> {
+    await apiClient.put(API_ENDPOINTS.USER_PROFILE_ADMIN(userId), updates);
+  }
+
+  static async updateStudentStats(userId: string, stats: any): Promise<void> {
+    await apiClient.put(API_ENDPOINTS.USER_STATS_STUDENT(userId), stats);
+  }
+
+  static async updateTeacherStats(userId: string, stats: any): Promise<void> {
+    await apiClient.put(API_ENDPOINTS.USER_STATS_TEACHER(userId), stats);
+  }
+
+  static async updateAdminStats(userId: string, stats: any): Promise<void> {
+    await apiClient.put(API_ENDPOINTS.USER_STATS_ADMIN(userId), stats);
+  }
+
+  static async updateAdminPermissions(userId: string, permissions: any): Promise<void> {
+    await apiClient.put(API_ENDPOINTS.USER_PERMISSIONS(userId), permissions);
   }
 }
 

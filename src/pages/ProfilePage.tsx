@@ -17,7 +17,7 @@ export function ProfilePage() {
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
             <Link
-              to="/dashboard"
+              to={user.role === 'admin' ? '/admin/overview' : user.role === 'teacher' ? '/teacher/courses' : '/dashboard'}
               className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 mb-4"
             >
               <ArrowLeft className="h-4 w-4" />

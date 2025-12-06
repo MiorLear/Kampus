@@ -52,6 +52,10 @@ export function Navigation({ user, onLogout, onViewProfile }: NavigationProps) {
     }
   };
 
+  const handleSettingsClick = () => {
+    navigate('/profile/settings');
+  };
+
   const handleLogout = () => {
     onLogout();
     navigate('/login');
@@ -94,7 +98,7 @@ export function Navigation({ user, onLogout, onViewProfile }: NavigationProps) {
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSettingsClick}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>

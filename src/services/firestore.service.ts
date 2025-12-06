@@ -33,6 +33,7 @@ export interface Course {
   title: string;
   description: string;
   teacher_id: string;
+  cover_image_url?: string;
   created_at: string;
   updated_at: string;
   modules?: CourseModule[];
@@ -62,6 +63,7 @@ export interface Enrollment {
 export interface Assignment {
   id: string;
   course_id: string;
+  module_id: string;
   title: string;
   description: string;
   due_date?: string;

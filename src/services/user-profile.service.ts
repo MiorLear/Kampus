@@ -1,5 +1,3 @@
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../config/firebase';
 import {
   UserProfile,
   StudentProfile,
@@ -21,6 +19,7 @@ import {
   isTeacherProfile,
   isAdminProfile,
 } from '../types/user-profiles';
+import { ApiService } from './api.service';
 
 /**
  * Servicio para gestionar perfiles de usuario mejorados
@@ -73,7 +72,7 @@ export class UserProfileService {
       accessibility_needs: input.accessibility_needs,
     };
     
-    await setDoc(doc(db, 'users', userId), studentProfile);
+    await ApiService.createUserProfile(userId, studentProfile);
     return studentProfile;
   }
   
@@ -124,7 +123,7 @@ export class UserProfileService {
       research: input.research,
     };
     
-    await setDoc(doc(db, 'users', userId), teacherProfile);
+    await ApiService.createUserProfile(userId, teacherProfile);
     return teacherProfile;
   }
   
@@ -187,7 +186,7 @@ export class UserProfileService {
       },
     };
     
-    await setDoc(doc(db, 'users', userId), adminProfile);
+    await ApiService.createUserProfile(userId, adminProfile);
     return adminProfile;
   }
   
@@ -198,13 +197,7 @@ export class UserProfileService {
    */
   static async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
-      const docSnap = await getDoc(doc(db, 'users', userId));
-      
-      if (!docSnap.exists()) {
-        return null;
-      }
-      
-      return docSnap.data() as UserProfile;
+      return await ApiService.getUser(userId) as UserProfile | null;
     } catch (error) {
       console.error('Error al obtener perfil de usuario:', error);
       return null;
@@ -220,12 +213,7 @@ export class UserProfileService {
     userId: string,
     updates: UpdateStudentInput
   ): Promise<void> {
-    const updateData = {
-      ...updates,
-      updated_at: new Date().toISOString(),
-    };
-    
-    await updateDoc(doc(db, 'users', userId), updateData as any);
+    await ApiService.updateStudentProfile(userId, updates);
   }
   
   /**
@@ -235,12 +223,7 @@ export class UserProfileService {
     userId: string,
     updates: UpdateTeacherInput
   ): Promise<void> {
-    const updateData = {
-      ...updates,
-      updated_at: new Date().toISOString(),
-    };
-    
-    await updateDoc(doc(db, 'users', userId), updateData as any);
+    await ApiService.updateTeacherProfile(userId, updates);
   }
   
   /**
@@ -250,19 +233,14 @@ export class UserProfileService {
     userId: string,
     updates: UpdateAdminInput
   ): Promise<void> {
-    const updateData = {
-      ...updates,
-      updated_at: new Date().toISOString(),
-    };
-    
-    await updateDoc(doc(db, 'users', userId), updateData as any);
+    await ApiService.updateAdminProfile(userId, updates);
   }
   
   /**
    * Actualiza la fecha de último login
    */
   static async updateLastLogin(userId: string): Promise<void> {
-    await updateDoc(doc(db, 'users', userId), {
+    await ApiService.updateUser(userId, {
       last_login: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
@@ -275,7 +253,7 @@ export class UserProfileService {
     userId: string,
     status: 'active' | 'inactive' | 'suspended' | 'pending'
   ): Promise<void> {
-    await updateDoc(doc(db, 'users', userId), {
+    await ApiService.updateUser(userId, {
       status,
       updated_at: new Date().toISOString(),
     });
@@ -301,10 +279,7 @@ export class UserProfileService {
       ...stats,
     };
     
-    await updateDoc(doc(db, 'users', userId), {
-      stats: updatedStats,
-      updated_at: new Date().toISOString(),
-    });
+    await ApiService.updateStudentStats(userId, updatedStats);
   }
   
   /**
@@ -325,10 +300,7 @@ export class UserProfileService {
       ...stats,
     };
     
-    await updateDoc(doc(db, 'users', userId), {
-      stats: updatedStats,
-      updated_at: new Date().toISOString(),
-    });
+    await ApiService.updateTeacherStats(userId, updatedStats);
   }
   
   /**
@@ -349,10 +321,7 @@ export class UserProfileService {
       ...stats,
     };
     
-    await updateDoc(doc(db, 'users', userId), {
-      stats: updatedStats,
-      updated_at: new Date().toISOString(),
-    });
+    await ApiService.updateAdminStats(userId, updatedStats);
   }
   
   // ========== PERMISOS (para administradores) ==========
@@ -391,10 +360,7 @@ export class UserProfileService {
       ...permissions,
     };
     
-    await updateDoc(doc(db, 'users', userId), {
-      permissions: updatedPermissions,
-      updated_at: new Date().toISOString(),
-    });
+    await ApiService.updateAdminPermissions(userId, updatedPermissions);
   }
 }
 

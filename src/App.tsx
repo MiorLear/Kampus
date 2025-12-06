@@ -151,6 +151,22 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/teacher/modules"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <DashboardPage defaultTab="modules" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/grading"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <DashboardPage defaultTab="grading" />
+              </ProtectedRoute>
+            }
+          />
           
           {/* Generic Routes */}
           <Route
@@ -162,10 +178,42 @@ function AppRoutes() {
             }
           />
           <Route
-            path="/profile"
+            path="/profile/overview"
             element={
               <ProtectedRoute>
                 <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/preferences"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/contact"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/settings"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/profile/overview" replace />
               </ProtectedRoute>
             }
           />

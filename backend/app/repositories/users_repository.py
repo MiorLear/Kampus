@@ -56,6 +56,35 @@ class UsersRepository:
                 stats["admins"] += 1
         return stats
 
+    def create(self, user_id: str, user_data: dict) -> dict:
+        """Create a new user document."""
+        user_data["id"] = user_id
+        self._db.collection("users").document(user_id).set(user_data)
+        return user_data
+
+    def update_stats(self, user_id: str, stats: dict) -> None:
+        """Update user statistics."""
+        user = self.get(user_id)
+        if not user:
+            raise ValueError(f"User {user_id} not found")
+        
+        current_stats = user.get("stats", {})
+        updated_stats = {**current_stats, **stats}
+        self.update(user_id, {"stats": updated_stats})
+
+    def update_permissions(self, user_id: str, permissions: dict) -> None:
+        """Update admin permissions."""
+        user = self.get(user_id)
+        if not user:
+            raise ValueError(f"User {user_id} not found")
+        
+        if user.get("role") != "admin":
+            raise ValueError(f"User {user_id} is not an admin")
+        
+        current_permissions = user.get("permissions", {})
+        updated_permissions = {**current_permissions, **permissions}
+        self.update(user_id, {"permissions": updated_permissions})
+
     @staticmethod
     def _doc_to_dict(doc) -> dict:
         """Convert Firestore document to dict with id."""

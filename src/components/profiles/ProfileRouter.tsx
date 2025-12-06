@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ProfileLayout } from './BaseProfile/ProfileLayout';
 import { PersonalInfo } from './BaseProfile/shared/PersonalInfo';
 import { PreferencesSection } from './BaseProfile/shared/PreferencesSection';
+import { SettingsSection } from './BaseProfile/shared/SettingsSection';
 import { StudentOverview } from './extensions/StudentExtensions';
 import { TeacherOverview } from './extensions/TeacherExtensions';
 import { AdminOverview } from './extensions/AdminExtensions';
@@ -17,12 +19,18 @@ import {
   isTeacherProfile,
   isAdminProfile,
 } from '../../types/user-profiles';
-import { BookOpen, GraduationCap, Shield, Mail, UserCircle, Settings, Camera } from 'lucide-react';
+import { BookOpen, GraduationCap, Shield, Mail, UserCircle, Settings, Camera, MoreHorizontal } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 
 interface ProfileRouterProps {
   profile: UserProfile;
@@ -33,15 +41,188 @@ interface ProfileRouterProps {
   onProfileUpdate?: () => void;
 }
 
+interface TabItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  path: string;
+}
+
+// Define tabs outside component to avoid recreation
+const PROFILE_TABS: Omit<TabItem, 'icon'>[] = [
+  { id: 'overview', label: 'Overview', value: 'overview', path: '/profile/overview' },
+  { id: 'preferences', label: 'Preferences', value: 'preferences', path: '/profile/preferences' },
+  { id: 'contact', label: 'Contact', value: 'contact', path: '/profile/contact' },
+  { id: 'settings', label: 'Settings', value: 'settings', path: '/profile/settings' },
+];
+
 /**
  * ProfileRouter: Main component that routes to the appropriate profile view
  * based on user role. Uses hybrid approach with shared base + role extensions.
  */
 export function ProfileRouter({ profile, onEdit, onExport, onShare, canEdit, onProfileUpdate }: ProfileRouterProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const tabsListRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  
+  // Create tabs with icons - use useMemo to prevent recreation on every render
+  const allTabs: TabItem[] = useMemo(() => [
+    { ...PROFILE_TABS[0], icon: <UserCircle className="h-4 w-4" /> },
+    { ...PROFILE_TABS[1], icon: <Settings className="h-4 w-4" /> },
+    { ...PROFILE_TABS[2], icon: <Mail className="h-4 w-4" /> },
+    { ...PROFILE_TABS[3], icon: <Shield className="h-4 w-4" /> },
+  ], []);
+
+  // Initialize activeTab based on URL
+  const getInitialTab = () => {
+    const path = location.pathname;
+    if (path === '/profile/overview') return 'overview';
+    if (path === '/profile/preferences') return 'preferences';
+    if (path === '/profile/contact') return 'contact';
+    if (path === '/profile/settings') return 'settings';
+    return 'overview';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [showPhotoDialog, setShowPhotoDialog] = useState(false);
   const [showContactEditor, setShowContactEditor] = useState(false);
   const [showPreferencesEditor, setShowPreferencesEditor] = useState(false);
   const [localProfile, setLocalProfile] = useState(profile);
+
+  // Initialize with all tabs visible, will be calculated on mount
+  const [visibleTabs, setVisibleTabs] = useState<string[]>(PROFILE_TABS.map(t => t.value));
+  const [hiddenTabs, setHiddenTabs] = useState<string[]>([]);
+
+  // Sync activeTab with URL
+  useEffect(() => {
+    const pathToTab = allTabs.find(tab => tab.path === location.pathname);
+    if (pathToTab && pathToTab.value !== activeTab) {
+      setActiveTab(pathToTab.value);
+    } else if (!pathToTab && location.pathname === '/profile') {
+      // If on /profile without a tab, redirect to overview
+      navigate('/profile/overview', { replace: true });
+    }
+  }, [location.pathname, allTabs, activeTab, navigate]);
+
+  // Handle tab change - update URL
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const tab = allTabs.find(t => t.value === value);
+    if (tab) {
+      navigate(tab.path, { replace: true });
+    }
+  };
+
+  // Dynamic tab visibility based on screen size
+  useEffect(() => {
+    const updateTabVisibility = () => {
+      if (!tabsListRef.current || !tabsRef.current) {
+        return false;
+      }
+
+      const containerWidth = tabsRef.current.offsetWidth;
+      if (containerWidth === 0) {
+        return false;
+      }
+
+      const dropdownButtonWidth = 120; // Approximate width of dropdown button
+      const availableWidth = containerWidth - dropdownButtonWidth - 32; // 32px for padding/margins
+      
+      const tabsList = tabsListRef.current;
+      const tabsListElement = tabsList?.querySelector('[data-slot="tabs-list"]') as HTMLElement;
+      if (!tabsListElement) {
+        return false;
+      }
+      
+      const tabElements = Array.from(tabsListElement.children) as HTMLElement[];
+      if (tabElements.length === 0) {
+        return false;
+      }
+      
+      let totalWidth = 0;
+      const newVisibleTabs: string[] = [];
+      const newHiddenTabs: string[] = [];
+
+      for (const tab of allTabs) {
+        const tabElement = tabElements.find(el => el.getAttribute('data-value') === tab.value);
+        if (tabElement) {
+          const tabWidth = tabElement.offsetWidth || 100; // Fallback width
+          if (totalWidth + tabWidth <= availableWidth) {
+            totalWidth += tabWidth;
+            newVisibleTabs.push(tab.value);
+          } else {
+            newHiddenTabs.push(tab.value);
+          }
+        } else {
+          // If tab is not rendered yet, estimate width
+          const estimatedWidth = tab.label.length * 8 + 40; // Rough estimate
+          if (totalWidth + estimatedWidth <= availableWidth) {
+            totalWidth += estimatedWidth;
+            newVisibleTabs.push(tab.value);
+          } else {
+            newHiddenTabs.push(tab.value);
+          }
+        }
+      }
+
+      // Always show at least the first 2 tabs
+      if (newVisibleTabs.length < 2) {
+        newVisibleTabs.push(...newHiddenTabs.splice(0, 2 - newVisibleTabs.length));
+      }
+
+      // Only update if values actually changed to prevent infinite loops
+      setVisibleTabs(prev => {
+        const prevSorted = [...prev].sort();
+        const newSorted = [...newVisibleTabs].sort();
+        if (JSON.stringify(prevSorted) !== JSON.stringify(newSorted)) {
+          return newVisibleTabs;
+        }
+        return prev;
+      });
+      
+      setHiddenTabs(prev => {
+        const prevSorted = [...prev].sort();
+        const newSorted = [...newHiddenTabs].sort();
+        if (JSON.stringify(prevSorted) !== JSON.stringify(newSorted)) {
+          return newHiddenTabs;
+        }
+        return prev;
+      });
+      
+      return true;
+    };
+
+    // Use multiple attempts to ensure DOM is ready
+    const timeouts: NodeJS.Timeout[] = [];
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    const tryUpdate = () => {
+      attempts++;
+      const success = updateTabVisibility();
+      if (!success && attempts < maxAttempts) {
+        timeouts.push(setTimeout(tryUpdate, 50));
+      }
+    };
+    
+    // Start trying immediately
+    tryUpdate();
+    
+    // Also try after next frame
+    requestAnimationFrame(() => {
+      tryUpdate();
+    });
+    
+    window.addEventListener('resize', updateTabVisibility);
+    
+    return () => {
+      window.removeEventListener('resize', updateTabVisibility);
+      timeouts.forEach(timeout => clearTimeout(timeout));
+    };
+  }, [allTabs]);
 
   const handleProfileUpdate = () => {
     onProfileUpdate?.();
@@ -164,27 +345,69 @@ export function ProfileRouter({ profile, onEdit, onExport, onShare, canEdit, onP
 
       {/* Main Profile Content */}
       <div className="flex-1">
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">
-              <UserCircle className="h-4 w-4 mr-2" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="preferences">
-              <Settings className="h-4 w-4 mr-2" />
-              Preferences
-            </TabsTrigger>
-            <TabsTrigger value="contact">
-              <Mail className="h-4 w-4 mr-2" />
-              Contact
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <div ref={tabsRef} className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div ref={tabsListRef} className="flex-1 min-w-0">
+              <TabsList className="w-full">
+                {allTabs.map((tab) => {
+                  const isVisible = visibleTabs.length === 0 || visibleTabs.includes(tab.value);
+                  if (!isVisible) return null;
+                  const isActive = activeTab === tab.value;
+                  return (
+                    <TabsTrigger 
+                      key={tab.id}
+                      value={tab.value}
+                      data-value={tab.value}
+                      className={isActive 
+                        ? '!bg-primary !text-primary-foreground !shadow-md !font-semibold' 
+                        : ''
+                      }
+                      style={isActive ? { 
+                        backgroundColor: 'var(--primary)', 
+                        color: 'var(--primary-foreground)',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06)',
+                        fontWeight: '600',
+                        zIndex: 1
+                      } : {}}
+                    >
+                      {tab.icon}
+                      {tab.label}
+                    </TabsTrigger>
+                  );
+                }).filter(Boolean)}
+              </TabsList>
+            </div>
+            
+            {hiddenTabs.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <MoreHorizontal className="h-4 w-4 mr-2" />
+                    More
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {allTabs
+                    .filter(tab => hiddenTabs.includes(tab.value))
+                    .map((tab) => (
+                      <DropdownMenuItem 
+                        key={tab.id}
+                        onClick={() => handleTabChange(tab.value)}
+                        className={activeTab === tab.value ? 'bg-primary/10 font-semibold' : ''}
+                      >
+                        {tab.icon}
+                        <span className="ml-2">{tab.label}</span>
+                      </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
 
           {/* Overview Tab - Role Specific */}
           <TabsContent value="overview" className="space-y-4">
             {renderOverview()}
           </TabsContent>
-
 
           {/* Preferences Tab - Shared */}
           <TabsContent value="preferences" className="space-y-4">
@@ -203,6 +426,15 @@ export function ProfileRouter({ profile, onEdit, onExport, onShare, canEdit, onP
               canEdit={canEdit}
             />
           </TabsContent>
+
+          {/* Settings Tab - Shared */}
+          <TabsContent value="settings" className="space-y-4">
+            <SettingsSection 
+              profile={localProfile}
+              canEdit={canEdit}
+              onProfileUpdate={handleProfileUpdate}
+            />
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -215,6 +447,7 @@ export function ProfileRouter({ profile, onEdit, onExport, onShare, canEdit, onP
             userId={profile.id}
             currentPhotoUrl={localProfile.photo_url}
             userName={localProfile.name}
+            role={localProfile.role}
             onPhotoUpdated={(newUrl) => {
               setLocalProfile({ ...localProfile, photo_url: newUrl });
               handleProfileUpdate();

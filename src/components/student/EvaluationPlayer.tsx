@@ -69,11 +69,12 @@ const mockQuestions: Question[] = [
 
 interface EvaluationPlayerProps {
   evaluation: Evaluation;
+  questions?: Question[];
   onBack: () => void;
   onSubmit: (answers: Record<string, string>) => void;
 }
 
-export function EvaluationPlayer({ evaluation, onBack, onSubmit }: EvaluationPlayerProps) {
+export function EvaluationPlayer({ evaluation, questions = mockQuestions, onBack, onSubmit }: EvaluationPlayerProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(3600); // 1 hour in seconds
@@ -128,8 +129,8 @@ export function EvaluationPlayer({ evaluation, onBack, onSubmit }: EvaluationPla
     onSubmit(answers);
   };
 
-  const currentQ = mockQuestions[currentQuestion];
-  const totalQuestions = mockQuestions.length;
+  const currentQ = questions[currentQuestion];
+  const totalQuestions = questions.length;
   const progress = ((currentQuestion + 1) / totalQuestions) * 100;
   const answeredCount = Object.keys(answers).length;
 
@@ -198,7 +199,7 @@ export function EvaluationPlayer({ evaluation, onBack, onSubmit }: EvaluationPla
             </CardHeader>
             <CardContent className="p-0">
               <div className="grid grid-cols-5 lg:grid-cols-1 gap-1 p-4">
-                {mockQuestions.map((_, index) => (
+                {questions.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentQuestion(index)}
@@ -206,7 +207,7 @@ export function EvaluationPlayer({ evaluation, onBack, onSubmit }: EvaluationPla
                       p-2 rounded-md text-sm font-medium transition-colors
                       ${currentQuestion === index 
                         ? 'bg-primary text-primary-foreground' 
-                        : answers[mockQuestions[index].id]
+                        : answers[questions[index].id]
                         ? 'bg-green-100 text-green-800'
                         : 'bg-muted hover:bg-accent'
                       }
@@ -303,7 +304,7 @@ export function EvaluationPlayer({ evaluation, onBack, onSubmit }: EvaluationPla
               <span>Remaining: {totalQuestions - answeredCount}</span>
             </div>
             <div className="flex items-center gap-4">
-              <span>Total Points: {mockQuestions.reduce((sum, q) => sum + q.points, 0)}</span>
+              <span>Total Points: {questions.reduce((sum, q) => sum + q.points, 0)}</span>
               <Button variant="outline" size="sm">
                 Save Draft
               </Button>

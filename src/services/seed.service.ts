@@ -42,42 +42,60 @@ export class SeedService {
           teacher_id: userId,
         });
 
-        // Create sample assignments for course 1
-        const assignment1Id = await FirestoreService.createAssignment({
-          course_id: course1Id,
-          title: 'HTML Basics Quiz',
-          description: 'Complete the quiz on HTML fundamentals including tags, attributes, and semantic HTML.',
-          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
-        });
+        // Get modules for courses to associate assignments
+        const course1Modules = await FirestoreService.getCourseModules(course1Id);
+        const course2Modules = await FirestoreService.getCourseModules(course2Id);
 
-        const assignment2Id = await FirestoreService.createAssignment({
-          course_id: course1Id,
-          title: 'CSS Styling Project',
-          description: 'Create a responsive landing page using CSS Flexbox and Grid. Submit the HTML and CSS files.',
-          due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days from now
-        });
+        // Create sample assignments for course 1 (only if modules exist)
+        if (course1Modules.length > 0) {
+          const module1 = course1Modules[0];
+          const assignment1Id = await FirestoreService.createAssignment({
+            course_id: course1Id,
+            module_id: module1.id,
+            title: 'HTML Basics Quiz',
+            description: 'Complete the quiz on HTML fundamentals including tags, attributes, and semantic HTML.',
+            due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+          });
 
-        const assignment3Id = await FirestoreService.createAssignment({
-          course_id: course1Id,
-          title: 'JavaScript Calculator',
-          description: 'Build a functional calculator using vanilla JavaScript. Include basic operations and a clean UI.',
-          due_date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(), // 21 days from now
-        });
+          const module2 = course1Modules.length > 1 ? course1Modules[1] : module1;
+          const assignment2Id = await FirestoreService.createAssignment({
+            course_id: course1Id,
+            module_id: module2.id,
+            title: 'CSS Styling Project',
+            description: 'Create a responsive landing page using CSS Flexbox and Grid. Submit the HTML and CSS files.',
+            due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days from now
+          });
 
-        // Create sample assignments for course 2
-        await FirestoreService.createAssignment({
-          course_id: course2Id,
-          title: 'React Hooks Exercise',
-          description: 'Implement a todo list application using useState and useEffect hooks.',
-          due_date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-        });
+          const module3 = course1Modules.length > 2 ? course1Modules[2] : module1;
+          const assignment3Id = await FirestoreService.createAssignment({
+            course_id: course1Id,
+            module_id: module3.id,
+            title: 'JavaScript Calculator',
+            description: 'Build a functional calculator using vanilla JavaScript. Include basic operations and a clean UI.',
+            due_date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(), // 21 days from now
+          });
+        }
 
-        await FirestoreService.createAssignment({
-          course_id: course2Id,
-          title: 'State Management with Redux',
-          description: 'Build a shopping cart feature using Redux for state management.',
-          due_date: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
-        });
+        // Create sample assignments for course 2 (only if modules exist)
+        if (course2Modules.length > 0) {
+          const module1 = course2Modules[0];
+          await FirestoreService.createAssignment({
+            course_id: course2Id,
+            module_id: module1.id,
+            title: 'React Hooks Exercise',
+            description: 'Implement a todo list application using useState and useEffect hooks.',
+            due_date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+          });
+
+          const module2 = course2Modules.length > 1 ? course2Modules[1] : module1;
+          await FirestoreService.createAssignment({
+            course_id: course2Id,
+            module_id: module2.id,
+            title: 'State Management with Redux',
+            description: 'Build a shopping cart feature using Redux for state management.',
+            due_date: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
+          });
+        }
 
         // Create sample announcements
         await FirestoreService.createAnnouncement({
@@ -297,13 +315,26 @@ export class SeedService {
   // Create assignments and announcements
   static async createSampleAssignmentsAndAnnouncements(courses: any[]) {
     for (const course of courses) {
+      // Get modules for this course
+      const modules = await FirestoreService.getCourseModules(course.id);
+      
+      if (modules.length === 0) {
+        console.log(`Skipping assignments for course ${course.title} - no modules found`);
+        continue;
+      }
+
       // Create 2-3 assignments per course
       const numAssignments = Math.floor(Math.random() * 2) + 2; // 2-3 assignments
       
       for (let i = 0; i < numAssignments; i++) {
         try {
+          // Associate assignment with a module (cycle through modules if needed)
+          const moduleIndex = i % modules.length;
+          const module = modules[moduleIndex];
+          
           const assignmentId = await FirestoreService.createAssignment({
             course_id: course.id,
+            module_id: module.id,
             title: `${course.title} - Assignment ${i + 1}`,
             description: `Complete this assignment to demonstrate your understanding of ${course.title.toLowerCase()}.`,
             due_date: new Date(Date.now() + (i + 1) * 7 * 24 * 60 * 60 * 1000).toISOString(), // 1-3 weeks from now

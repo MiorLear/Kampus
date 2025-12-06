@@ -6,6 +6,20 @@ service cloud.firestore {
     // ⚠️ IMPORTANTE: Estas reglas son muy permisivas, solo para desarrollo
     // ⚠️ NO usar en producción sin revisar y ajustar
     
+    // Users: reglas específicas para desarrollo
+    // Permitir crear y leer el propio perfil
+    match /users/{userId} {
+      // Permitir lectura si el usuario está autenticado Y es su propio perfil
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Permitir creación si el userId coincide con el uid del usuario autenticado
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Permitir actualización si el userId coincide con el uid del usuario autenticado
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // Para desarrollo: permitir lectura de cualquier perfil si está autenticado
+      // (esto ayuda cuando el usuario se cierra sesión después del registro)
+      allow read: if request.auth != null;
+    }
+    
     // Permitir todo para usuarios autenticados (DESARROLLO SOLO)
     match /{document=**} {
       allow read, write: if request.auth != null;

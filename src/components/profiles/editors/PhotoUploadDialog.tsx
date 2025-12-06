@@ -21,6 +21,7 @@ interface PhotoUploadDialogProps {
   userId: string;
   currentPhotoUrl?: string;
   userName: string;
+  role: string;
   onPhotoUpdated?: (newUrl: string) => void;
 }
 
@@ -30,6 +31,7 @@ export function PhotoUploadDialog({
   userId,
   currentPhotoUrl,
   userName,
+  role,
   onPhotoUpdated,
 }: PhotoUploadDialogProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -106,6 +108,21 @@ export function PhotoUploadDialog({
     }
   };
 
+  const updateProfilePhoto = async (photoUrl?: string) => {
+    switch (role) {
+      case 'teacher':
+        await UserProfileService.updateTeacherProfile(userId, { photo_url: photoUrl });
+        break;
+      case 'admin':
+        await UserProfileService.updateAdminProfile(userId, { photo_url: photoUrl });
+        break;
+      case 'student':
+      default:
+        await UserProfileService.updateStudentProfile(userId, { photo_url: photoUrl });
+        break;
+    }
+  };
+
   const handleUpload = async () => {
     if (!selectedFile && !imageUrl) {
       toast.error('Please select an image or enter a URL');
@@ -124,10 +141,7 @@ export function PhotoUploadDialog({
           try {
             downloadUrl = e.target?.result as string;
             
-            // Update user profile in Firestore with base64 data
-            await UserProfileService.updateStudentProfile(userId, {
-              photo_url: downloadUrl,
-            });
+            await updateProfilePhoto(downloadUrl);
 
             toast.success('Profile picture updated successfully!');
             onPhotoUpdated?.(downloadUrl);
@@ -153,10 +167,7 @@ export function PhotoUploadDialog({
         // Use provided URL
         downloadUrl = imageUrl;
         
-        // Update user profile in Firestore
-        await UserProfileService.updateStudentProfile(userId, {
-          photo_url: downloadUrl,
-        });
+        await updateProfilePhoto(downloadUrl);
 
         toast.success('Profile picture updated successfully!');
         onPhotoUpdated?.(downloadUrl);
@@ -179,10 +190,7 @@ export function PhotoUploadDialog({
     setUploading(true);
 
     try {
-      // Update user profile to remove photo_url
-      await UserProfileService.updateStudentProfile(userId, {
-        photo_url: undefined,
-      });
+      await updateProfilePhoto(undefined);
 
       toast.success('Profile picture removed');
       onPhotoUpdated?.('');

@@ -82,3 +82,152 @@ def get_user_stats():
         print("Error fetching user stats:", exc)
         return jsonify({"error": "Failed to fetch user stats"}), 500
 
+
+@users_bp.post("/<user_id>/profile")
+def create_user_profile(user_id: str):
+    """Create a new user profile."""
+    service = UsersService()
+    payload = request.get_json(force=True)
+
+    if not payload:
+        return jsonify({"error": "No profile data provided"}), 400
+
+    try:
+        profile = service.create_user_profile(user_id, payload)
+        return jsonify(profile), 201
+    except Exception as exc:  # pylint: disable=broad-except
+        print("Error creating user profile:", exc)
+        return jsonify({"error": "Failed to create user profile"}), 500
+
+
+@users_bp.put("/<user_id>/profile/student")
+def update_student_profile(user_id: str):
+    """Update a student profile."""
+    service = UsersService()
+    payload = request.get_json(force=True)
+
+    if not payload:
+        return jsonify({"error": "No update data provided"}), 400
+
+    try:
+        service.update_student_profile(user_id, payload)
+        return jsonify({"message": "Student profile updated successfully", "id": user_id}), 200
+    except ValueError as err:
+        return jsonify({"error": str(err)}), 404
+    except Exception as exc:  # pylint: disable=broad-except
+        print("Error updating student profile:", exc)
+        return jsonify({"error": "Failed to update student profile"}), 500
+
+
+@users_bp.put("/<user_id>/profile/teacher")
+def update_teacher_profile(user_id: str):
+    """Update a teacher profile."""
+    service = UsersService()
+    payload = request.get_json(force=True)
+
+    if not payload:
+        return jsonify({"error": "No update data provided"}), 400
+
+    try:
+        service.update_teacher_profile(user_id, payload)
+        return jsonify({"message": "Teacher profile updated successfully", "id": user_id}), 200
+    except ValueError as err:
+        return jsonify({"error": str(err)}), 404
+    except Exception as exc:  # pylint: disable=broad-except
+        print("Error updating teacher profile:", exc)
+        return jsonify({"error": "Failed to update teacher profile"}), 500
+
+
+@users_bp.put("/<user_id>/profile/admin")
+def update_admin_profile(user_id: str):
+    """Update an admin profile."""
+    service = UsersService()
+    payload = request.get_json(force=True)
+
+    if not payload:
+        return jsonify({"error": "No update data provided"}), 400
+
+    try:
+        service.update_admin_profile(user_id, payload)
+        return jsonify({"message": "Admin profile updated successfully", "id": user_id}), 200
+    except ValueError as err:
+        return jsonify({"error": str(err)}), 404
+    except Exception as exc:  # pylint: disable=broad-except
+        print("Error updating admin profile:", exc)
+        return jsonify({"error": "Failed to update admin profile"}), 500
+
+
+@users_bp.put("/<user_id>/stats/student")
+def update_student_stats(user_id: str):
+    """Update student statistics."""
+    service = UsersService()
+    payload = request.get_json(force=True)
+
+    if not payload:
+        return jsonify({"error": "No stats data provided"}), 400
+
+    try:
+        service.update_student_stats(user_id, payload)
+        return jsonify({"message": "Student stats updated successfully", "id": user_id}), 200
+    except ValueError as err:
+        return jsonify({"error": str(err)}), 404
+    except Exception as exc:  # pylint: disable=broad-except
+        print("Error updating student stats:", exc)
+        return jsonify({"error": "Failed to update student stats"}), 500
+
+
+@users_bp.put("/<user_id>/stats/teacher")
+def update_teacher_stats(user_id: str):
+    """Update teacher statistics."""
+    service = UsersService()
+    payload = request.get_json(force=True)
+
+    if not payload:
+        return jsonify({"error": "No stats data provided"}), 400
+
+    try:
+        service.update_teacher_stats(user_id, payload)
+        return jsonify({"message": "Teacher stats updated successfully", "id": user_id}), 200
+    except ValueError as err:
+        return jsonify({"error": str(err)}), 404
+    except Exception as exc:  # pylint: disable=broad-except
+        print("Error updating teacher stats:", exc)
+        return jsonify({"error": "Failed to update teacher stats"}), 500
+
+
+@users_bp.put("/<user_id>/stats/admin")
+def update_admin_stats(user_id: str):
+    """Update admin statistics."""
+    service = UsersService()
+    payload = request.get_json(force=True)
+
+    if not payload:
+        return jsonify({"error": "No stats data provided"}), 400
+
+    try:
+        service.update_admin_stats(user_id, payload)
+        return jsonify({"message": "Admin stats updated successfully", "id": user_id}), 200
+    except ValueError as err:
+        return jsonify({"error": str(err)}), 404
+    except Exception as exc:  # pylint: disable=broad-except
+        print("Error updating admin stats:", exc)
+        return jsonify({"error": "Failed to update admin stats"}), 500
+
+
+@users_bp.put("/<user_id>/permissions")
+def update_admin_permissions(user_id: str):
+    """Update admin permissions."""
+    service = UsersService()
+    payload = request.get_json(force=True)
+
+    if not payload:
+        return jsonify({"error": "No permissions data provided"}), 400
+
+    try:
+        service.update_admin_permissions(user_id, payload)
+        return jsonify({"message": "Admin permissions updated successfully", "id": user_id}), 200
+    except ValueError as err:
+        return jsonify({"error": str(err)}), 404
+    except Exception as exc:  # pylint: disable=broad-except
+        print("Error updating admin permissions:", exc)
+        return jsonify({"error": "Failed to update admin permissions"}), 500

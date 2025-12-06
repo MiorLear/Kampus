@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -6,7 +6,6 @@ import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { 
   ArrowLeft, 
   Plus, 
@@ -16,9 +15,12 @@ import {
   Eye,
   Clock,
   FileText,
-  CheckCircle,
-  GripVertical
+  GripVertical,
+  Loader2,
+  RotateCcw
 } from 'lucide-react';
+import { ApiService } from '../../services/api.service';
+import { toast } from 'sonner';
 
 interface Course {
   id: string;
@@ -37,6 +39,7 @@ interface Question {
 
 interface Evaluation {
   id: string;
+  course_id: string;
   title: string;
   description: string;
   type: 'quiz' | 'assignment';
@@ -46,65 +49,23 @@ interface Evaluation {
   status: 'draft' | 'published';
   dueDate?: string;
   questions: Question[];
+  grade?: number; // For compatibility
 }
 
-const mockEvaluations: Evaluation[] = [
-  {
-    id: '1',
-    title: 'HTML & CSS Fundamentals Quiz',
-    description: 'Test your knowledge of HTML and CSS basics',
-    type: 'quiz',
-    timeLimit: 60,
-    attempts: 3,
-    passingGrade: 70,
-    status: 'published',
-    dueDate: '2024-01-20',
-    questions: [
-      {
-        id: '1',
-        type: 'multiple-choice',
-        question: 'Which HTML tag is used to create a hyperlink?',
-        options: ['<link>', '<href>', '<a>', '<url>'],
-        correctAnswer: '<a>',
-        points: 10,
-        order: 1
-      },
-      {
-        id: '2',
-        type: 'multiple-choice',
-        question: 'What does CSS stand for?',
-        options: [
-          'Computer Style Sheets',
-          'Cascading Style Sheets',
-          'Creative Style Sheets',
-          'Colorful Style Sheets'
-        ],
-        correctAnswer: 'Cascading Style Sheets',
-        points: 10,
-        order: 2
-      }
-    ]
-  },
-  {
-    id: '2',
-    title: 'JavaScript Basics Assignment',
-    description: 'Complete coding exercises using JavaScript',
-    type: 'assignment',
-    attempts: 1,
-    passingGrade: 75,
-    status: 'draft',
-    dueDate: '2024-01-25',
-    questions: [
-      {
-        id: '3',
-        type: 'open-ended',
-        question: 'Write a JavaScript function that takes an array of numbers and returns the sum.',
-        points: 25,
-        order: 1
-      }
-    ]
-  }
-];
+interface ApiAssignment {
+  id: string;
+  course_id: string;
+  title: string;
+  description?: string;
+  type: 'quiz' | 'assignment';
+  time_limit?: number;
+  max_attempts?: number;
+  passing_score?: number;
+  status: 'draft' | 'published';
+  due_date?: string;
+  questions?: string | Question[];
+  [key: string]: any;
+}
 
 interface EvaluationBuilderProps {
   course: Course;
@@ -112,14 +73,49 @@ interface EvaluationBuilderProps {
 }
 
 export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
-  const [evaluations, setEvaluations] = useState(mockEvaluations);
+  const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadEvaluations();
+  }, [course]);
+
+  const loadEvaluations = async () => {
+    try {
+      setLoading(true);
+      const assignments = await ApiService.getAssignmentsByCourse(course.id);
+      
+      // Map API assignments to local Evaluation interface
+      const mappedEvaluations: Evaluation[] = assignments.map((a: ApiAssignment) => ({
+        id: a.id,
+        course_id: a.course_id,
+        title: a.title || 'Untitled',
+        description: a.description || '',
+        type: a.type || 'assignment',
+        timeLimit: a.time_limit,
+        attempts: a.max_attempts || 1,
+        passingGrade: a.passing_score || 0,
+        status: a.status || 'draft',
+        dueDate: a.due_date,
+        questions: a.questions ? (typeof a.questions === 'string' ? JSON.parse(a.questions) : a.questions) : []
+      }));
+
+      setEvaluations(mappedEvaluations);
+    } catch (error) {
+      console.error('Error loading evaluations:', error);
+      toast.error('Failed to load evaluations');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const createNewEvaluation = () => {
     const newEvaluation: Evaluation = {
-      id: Date.now().toString(),
+      id: 'temp-' + Date.now(), // Temporary ID until saved
+      course_id: course.id,
       title: 'New Evaluation',
       description: '',
       type: 'quiz',
@@ -153,7 +149,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
   const updateQuestion = (questionId: string, updates: Partial<Question>) => {
     if (!selectedEvaluation) return;
     
-    const updatedQuestions = selectedEvaluation.questions.map(q =>
+    const updatedQuestions = selectedEvaluation.questions.map((q: Question) =>
       q.id === questionId ? { ...q, ...updates } : q
     );
     
@@ -170,7 +166,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
   const deleteQuestion = (questionId: string) => {
     if (!selectedEvaluation) return;
     
-    const updatedQuestions = selectedEvaluation.questions.filter(q => q.id !== questionId);
+    const updatedQuestions = selectedEvaluation.questions.filter((q: Question) => q.id !== questionId);
     setSelectedEvaluation({
       ...selectedEvaluation,
       questions: updatedQuestions
@@ -181,20 +177,125 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
     }
   };
 
-  const saveEvaluation = () => {
+  const syncModules = async () => {
+    try {
+      setLoading(true);
+      toast.info('Syncing assignments to modules...');
+      
+      const assignments = await ApiService.getAssignmentsByCourse(course.id);
+      const modules = await ApiService.getCourseModules(course.id);
+      
+      let createdCount = 0;
+      let maxOrder = modules.length > 0 ? Math.max(...modules.map((m: any) => m.order || 0)) : 0;
+
+      for (const assignment of assignments) {
+        // Check if a module exists for this assignment
+        // We check if any module content contains the assignmentId
+        const exists = modules.some((m: any) => {
+            try {
+                if (!m.content) return false;
+                const parsed = JSON.parse(m.content);
+                return parsed.assignmentId === assignment.id;
+            } catch {
+                return false;
+            }
+        });
+
+        if (!exists) {
+            // Create module
+            maxOrder++;
+            await ApiService.createModule(course.id, {
+                title: assignment.title,
+                type: 'assignment',
+                order: maxOrder,
+                content: JSON.stringify({
+                    assignmentId: assignment.id,
+                    description: assignment.description
+                })
+            });
+            createdCount++;
+        }
+      }
+
+      if (createdCount > 0) {
+        toast.success(`Synced ${createdCount} assignments to modules.`);
+      } else {
+        toast.info('All assignments are already synced.');
+      }
+      
+    } catch (error) {
+       console.error('Error syncing modules:', error);
+       toast.error('Failed to sync modules');
+    } finally {
+       setLoading(false);
+    }
+  };
+
+  const saveEvaluation = async () => {
     if (!selectedEvaluation) return;
     
-    setEvaluations(prev => {
-      const existing = prev.find(e => e.id === selectedEvaluation.id);
-      if (existing) {
-        return prev.map(e => e.id === selectedEvaluation.id ? selectedEvaluation : e);
+    try {
+      const payload = {
+        course_id: selectedEvaluation.course_id,
+        title: selectedEvaluation.title,
+        description: selectedEvaluation.description,
+        status: selectedEvaluation.status,
+        due_date: selectedEvaluation.dueDate,
+        max_attempts: selectedEvaluation.attempts,
+        passing_score: selectedEvaluation.passingGrade,
+        time_limit: selectedEvaluation.timeLimit,
+        type: selectedEvaluation.type,
+        // Store questions as JSON or array depending on what backend expects.
+        questions: selectedEvaluation.questions 
+      };
+
+      let assignmentId = selectedEvaluation.id;
+
+      if (selectedEvaluation.id.startsWith('temp-')) {
+        // Create new
+        const newId = await ApiService.createAssignment(payload);
+        assignmentId = newId;
+        toast.success('Evaluation created successfully');
+
+        // AUTOMATICALLY CREATE A MODULE FOR THIS ASSIGNMENT
+        try {
+          // Fetch existing modules to find last order
+          const modules = await ApiService.getCourseModules(selectedEvaluation.course_id);
+          const maxOrder = modules.length > 0 ? Math.max(...modules.map((m: any) => m.order || 0)) : 0;
+
+          // Create the module
+          await ApiService.createModule(selectedEvaluation.course_id, {
+            title: selectedEvaluation.title,
+            type: 'assignment',
+            order: maxOrder + 1,
+            // We store the assignment ID in the content so CourseViewer can link them
+            content: JSON.stringify({
+              assignmentId: newId,
+              description: selectedEvaluation.description
+            })
+          });
+          toast.success('Course module created for assignment');
+        } catch (moduleError) {
+          console.error('Failed to create module for assignment:', moduleError);
+          toast.warning('Assignment created but failed to create course module');
+        }
+
       } else {
-        return [...prev, selectedEvaluation];
+        // Update existing
+        await ApiService.updateAssignment(selectedEvaluation.id, payload);
+        toast.success('Evaluation updated successfully');
+        
+        // TODO: Ideally we should also find the corresponding module and update its title
       }
-    });
-    
-    setIsEditing(false);
-    setEditingQuestion(null);
+
+      await loadEvaluations(); // Reload to get fresh data/IDs
+      setIsEditing(false);
+      setEditingQuestion(null);
+      setSelectedEvaluation(null);
+    } catch (error) {
+      console.error('Error saving evaluation:', error);
+      toast.error('Failed to save evaluation');
+    }
   };
 
   if (editingQuestion) {
@@ -205,7 +306,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Evaluation
           </Button>
-          <h1>Edit Question</h1>
+          <h1 className="text-2xl font-bold">Edit Question</h1>
         </div>
 
         <Card>
@@ -236,7 +337,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
               <Textarea
                 id="question-text"
                 value={editingQuestion.question}
-                onChange={(e) => updateQuestion(editingQuestion.id, { question: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateQuestion(editingQuestion.id, { question: e.target.value })}
                 placeholder="Enter your question here..."
                 className="min-h-24"
               />
@@ -245,11 +346,11 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
             {editingQuestion.type === 'multiple-choice' && (
               <div className="space-y-4">
                 <Label>Answer Options</Label>
-                {editingQuestion.options?.map((option, index) => (
+                {editingQuestion.options?.map((option: string, index: number) => (
                   <div key={index} className="flex items-center gap-2">
                     <Input
                       value={option}
-                      onChange={(e) => {
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                         const newOptions = [...(editingQuestion.options || [])];
                         newOptions[index] = e.target.value;
                         updateQuestion(editingQuestion.id, { options: newOptions });
@@ -284,7 +385,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
                 id="question-points"
                 type="number"
                 value={editingQuestion.points}
-                onChange={(e) => updateQuestion(editingQuestion.id, { points: parseInt(e.target.value) || 0 })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateQuestion(editingQuestion.id, { points: parseInt(e.target.value) || 0 })}
                 min="1"
               />
             </div>
@@ -315,7 +416,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Evaluations
             </Button>
-            <h1>Edit Evaluation</h1>
+            <h1 className="text-2xl font-bold">Edit Evaluation</h1>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={selectedEvaluation.status === 'published' ? 'default' : 'secondary'}>
@@ -340,7 +441,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
                   <Input
                     id="eval-title"
                     value={selectedEvaluation.title}
-                    onChange={(e) => setSelectedEvaluation({
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedEvaluation({
                       ...selectedEvaluation,
                       title: e.target.value
                     })}
@@ -352,7 +453,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
                   <Textarea
                     id="eval-description"
                     value={selectedEvaluation.description}
-                    onChange={(e) => setSelectedEvaluation({
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setSelectedEvaluation({
                       ...selectedEvaluation,
                       description: e.target.value
                     })}
@@ -387,7 +488,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
                       id="time-limit"
                       type="number"
                       value={selectedEvaluation.timeLimit || ''}
-                      onChange={(e) => setSelectedEvaluation({
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedEvaluation({
                         ...selectedEvaluation,
                         timeLimit: parseInt(e.target.value) || undefined
                       })}
@@ -402,7 +503,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
                       id="attempts"
                       type="number"
                       value={selectedEvaluation.attempts}
-                      onChange={(e) => setSelectedEvaluation({
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedEvaluation({
                         ...selectedEvaluation,
                         attempts: parseInt(e.target.value) || 1
                       })}
@@ -416,7 +517,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
                       id="passing-grade"
                       type="number"
                       value={selectedEvaluation.passingGrade}
-                      onChange={(e) => setSelectedEvaluation({
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedEvaluation({
                         ...selectedEvaluation,
                         passingGrade: parseInt(e.target.value) || 70
                       })}
@@ -432,7 +533,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
                     id="due-date"
                     type="date"
                     value={selectedEvaluation.dueDate || ''}
-                    onChange={(e) => setSelectedEvaluation({
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedEvaluation({
                       ...selectedEvaluation,
                       dueDate: e.target.value
                     })}
@@ -462,7 +563,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {selectedEvaluation.questions.map((question, index) => (
+                    {selectedEvaluation.questions.map((question: Question, index: number) => (
                       <div key={question.id} className="flex items-center gap-4 p-4 border rounded-lg">
                         <GripVertical className="h-5 w-5 text-muted-foreground" />
                         <div className="flex-1">
@@ -511,7 +612,7 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Total Points</span>
-                  <span>{selectedEvaluation.questions.reduce((sum, q) => sum + q.points, 0)}</span>
+                  <span>{selectedEvaluation.questions.reduce((sum: number, q: Question) => sum + q.points, 0)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Estimated Time</span>
@@ -559,71 +660,98 @@ export function EvaluationBuilder({ course, onBack }: EvaluationBuilderProps) {
             Back to Courses
           </Button>
           <div>
-            <h1>Evaluations</h1>
+            <h1 className="text-2xl font-bold">Evaluations</h1>
             <p className="text-muted-foreground">{course.title}</p>
           </div>
         </div>
-        <Button onClick={createNewEvaluation}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Evaluation
-        </Button>
+        <div className="flex gap-2">
+            <Button variant="outline" onClick={syncModules} disabled={loading}>
+                <RotateCcw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Sync to Modules
+            </Button>
+            <Button onClick={createNewEvaluation}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Evaluation
+            </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {evaluations.map(evaluation => (
-          <Card key={evaluation.id} className="cursor-pointer hover:shadow-md transition-shadow">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <CardTitle className="text-lg">{evaluation.title}</CardTitle>
-                <Badge variant={evaluation.status === 'published' ? 'default' : 'secondary'}>
-                  {evaluation.status}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{evaluation.type}</Badge>
-                {evaluation.timeLimit && (
-                  <Badge variant="outline">
-                    <Clock className="mr-1 h-3 w-3" />
-                    {evaluation.timeLimit}m
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">{evaluation.description}</p>
-                
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{evaluation.questions.length} questions</span>
-                  <span>{evaluation.questions.reduce((sum, q) => sum + q.points, 0)} points</span>
-                </div>
-
-                {evaluation.dueDate && (
-                  <div className="text-sm text-muted-foreground">
-                    Due: {new Date(evaluation.dueDate).toLocaleDateString()}
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2 text-muted-foreground">Loading evaluations...</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {evaluations.length === 0 ? (
+            <div className="col-span-full text-center py-12 border rounded-lg bg-slate-50">
+              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium">No evaluations yet</h3>
+              <p className="text-muted-foreground mb-4">Create your first quiz or assignment for this course.</p>
+              <Button onClick={createNewEvaluation}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Evaluation
+              </Button>
+            </div>
+          ) : (
+            evaluations.map((evaluation: Evaluation) => (
+              <Card key={evaluation.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="text-lg">{evaluation.title}</CardTitle>
+                    <Badge variant={evaluation.status === 'published' ? 'default' : 'secondary'}>
+                      {evaluation.status}
+                    </Badge>
                   </div>
-                )}
+                  <div className="flex items-center gap-2">
+                    <Badge variant={evaluation.type === 'quiz' ? 'outline' : 'secondary'}>{evaluation.type}</Badge>
+                    {evaluation.timeLimit && (
+                      <Badge variant="outline">
+                        <Clock className="mr-1 h-3 w-3" />
+                        {evaluation.timeLimit}m
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {evaluation.description || 'No description provided.'}
+                    </p>
+                    
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>{evaluation.questions.length} questions</span>
+                      <span>{evaluation.questions.reduce((sum: number, q: Question) => sum + q.points, 0)} points</span>
+                    </div>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    className="flex-1"
-                    onClick={() => {
-                      setSelectedEvaluation(evaluation);
-                      setIsEditing(true);
-                    }}
-                  >
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </Button>
-                  <Button variant="outline">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                    {evaluation.dueDate && (
+                      <div className="text-sm text-muted-foreground">
+                        Due: {new Date(evaluation.dueDate).toLocaleDateString()}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        className="flex-1"
+                        onClick={() => {
+                          setSelectedEvaluation(evaluation);
+                          setIsEditing(true);
+                        }}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button variant="outline">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -6,21 +6,25 @@ import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { 
   ArrowLeft, 
-  Play, 
+  CheckCircle, 
+  Clock, 
   FileText, 
+  Play, 
+  RotateCcw, 
+  Search, 
+  Eye, 
   ExternalLink, 
-  Download,
-  CheckCircle,
-  Circle,
-  Clock,
-  File,
-  Image,
-  Link,
-  Edit
+  Circle, 
+  BookOpen, 
+  ChevronRight, 
+  Edit,
+  Download
 } from 'lucide-react';
 import { CourseModule, UserProgress, CourseProgress } from '../../services/firestore.service';
 import { ApiService } from '../../services/api.service';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { EvaluationPlayer } from './EvaluationPlayer';
 import { useAuth } from '../../hooks/useAuth';
   
   interface Course {
@@ -32,6 +36,7 @@ import { useAuth } from '../../hooks/useAuth';
     status: string;
     duration: string;
     modules: number;
+    cover_image_url?: string;
   }
   
   interface CourseModuleWithProgress extends CourseModule {
@@ -172,6 +177,12 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
       console.log('CourseViewer: Loaded modules:', courseModules);
       
       // Load user progress for this course
+      if (!user) {
+        console.warn('CourseViewer: User not authenticated');
+        setModules(courseModules.map(m => ({ ...m, completed: false })));
+        return;
+      }
+      
       const userProgress = await ApiService.getUserProgressForCourse(user.id, course.id);
       console.log('CourseViewer: Loaded user progress:', userProgress);
       
@@ -182,7 +193,13 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
       
       // Merge modules with progress data
       const modulesWithProgress = courseModules.map(module => {
-        const progress = userProgress.find(p => p.module_id === module.id);
+        if (!module || !module.id) return null;
+        
+        // Safety check for userProgress array
+        const progress = Array.isArray(userProgress) 
+          ? userProgress.find(p => p && p.module_id === module.id)
+          : null;
+
         return {
           ...module,
           completed: progress?.completed || false,
@@ -190,7 +207,7 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
           progress_percentage: progress?.progress_percentage || 0,
           times_accessed: progress?.times_accessed || 0
         };
-      });
+      }).filter(Boolean) as CourseModuleWithProgress[];
       
       console.log('CourseViewer: Modules with progress:', modulesWithProgress);
       setModules(modulesWithProgress);
@@ -206,6 +223,8 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
   };
 
   const markModuleComplete = async (moduleId: string) => {
+    if (!user) return;
+    
     try {
       await ApiService.markModuleComplete(user.id, course.id, moduleId);
       
@@ -290,6 +309,7 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
                     />
                   ) : (
                     // Generic video (MP4, WebM, etc.) - Tracking completo
+                    user ? (
                     <VideoPlayer
                       src={selectedModule.url}
                       title={selectedModule.title}
@@ -311,6 +331,7 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
                         }
                       }}
                     />
+                    ) : <div>Please log in to track video progress</div>
                   )}
                 </div>
               ) : (
@@ -328,7 +349,7 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
                   <div dangerouslySetInnerHTML={{ __html: selectedModule.content }} />
                 </div>
               )}
-              {selectedModule.progress_percentage > 0 && selectedModule.progress_percentage < 100 && (
+              {selectedModule.progress_percentage !== undefined && selectedModule.progress_percentage > 0 && selectedModule.progress_percentage < 100 && (
                 <div className="bg-muted p-3 rounded-lg">
                   <div className="flex items-center justify-between text-sm mb-2">
                     <span>Progreso de visualización</span>
@@ -407,20 +428,83 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
           );
 
         case 'assignment':
+          // We need to handle two cases:
+          // 1. Content is just raw JSON questions (legacy/seeded data potentially)
+          // 2. Content is JSON with { assignmentId, description } (new flow)
+          
+          // State to hold fetched assignment data
+          const [assignmentData, setAssignmentData] = useState<any>(null);
+          const [loadingAssignment, setLoadingAssignment] = useState(false);
+
+          useEffect(() => {
+             const loadAssignment = async () => {
+                try {
+                  if (!selectedModule.content) return;
+                  
+                  let parsed: any = {};
+                  try {
+                    parsed = JSON.parse(selectedModule.content);
+                  } catch {
+                    return; // Not JSON
+                  }
+
+                  if (parsed.assignmentId) {
+                     setLoadingAssignment(true);
+                     const assignment = await ApiService.getAssignment(parsed.assignmentId);
+                     setAssignmentData(assignment);
+                     setLoadingAssignment(false);
+                  } else if (Array.isArray(parsed)) {
+                     // Legacy/Seeded: Content IS the questions
+                     setAssignmentData({ questions: parsed });
+                  }
+                } catch (err) {
+                   console.error("Error loading assignment data", err);
+                   setLoadingAssignment(false);
+                }
+             };
+             loadAssignment();
+          }, [selectedModule.id, selectedModule.content]);
+
+
+          if (loadingAssignment) {
+            return <div className="p-8 text-center text-muted-foreground">Loading assignment...</div>;
+          }
+
+          const questions = assignmentData?.questions || [];
+          // If we have questions from the fetch, use them. 
+          // If the assignmentData has 'questions' field as string, parse it.
+          const finalQuestions = typeof questions === 'string' ? JSON.parse(questions) : questions;
+          
+          const assignmentId = assignmentData?.id || selectedModule.id; // Fallback to module ID if no specific assignment ID (legacy)
+
           return (
             <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Edit className="h-5 w-5 text-blue-600" />
-                  <h3 className="font-semibold text-blue-900">Assignment</h3>
-                </div>
-                <p className="text-blue-800">This module contains an assignment. Complete it to progress.</p>
-              </div>
-              {selectedModule.content && (
-                <div className="prose max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: selectedModule.content }} />
-                </div>
-              )}
+              <EvaluationPlayer
+                evaluation={{
+                  id: assignmentId,
+                  title: assignmentData?.title || selectedModule.title,
+                  course: course.title,
+                  type: 'assignment',
+                  status: selectedModule.completed ? 'completed' : 'pending',
+                  maxScore: 100,
+                  dueDate: assignmentData?.due_date || new Date().toISOString()
+                }}
+                questions={Array.isArray(finalQuestions) ? finalQuestions : []} 
+                onBack={() => {}} 
+                onSubmit={async (answers) => {
+                  try {
+                    await ApiService.submitAssignment(assignmentId, {
+                        answers,
+                        student_id: user?.id || ''
+                    });
+                    toast.success('Assignment submitted successfully!');
+                    markModuleComplete(selectedModule.id);
+                  } catch (error) {
+                    console.error('Error submitting assignment:', error);
+                    toast.error('Failed to submit assignment');
+                  }
+                }}
+              />
             </div>
           );
 
@@ -443,6 +527,17 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
             <p className="text-muted-foreground">by {course.instructor}</p>
           </div>
         </div>
+
+        {/* Cover Image */}
+        {course.cover_image_url && (
+          <div className="w-full h-64 rounded-lg overflow-hidden mb-6 border border-border">
+            <img
+              src={course.cover_image_url}
+              alt={course.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -481,7 +576,48 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Module List */}
-              <div className="lg:col-span-1">
+              <div className="lg:col-span-1 space-y-6">
+                {/* Assignments List */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Course Assignments</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                     {modules.filter(m => m.type?.toLowerCase() === 'assignment').length === 0 ? (
+                       <div className="p-4 text-sm text-muted-foreground text-center">
+                         No assignments in this course.
+                       </div>
+                     ) : (
+                       <div className="divide-y">
+                         {modules.filter(m => m.type?.toLowerCase() === 'assignment').map((module) => (
+                           <button
+                             key={module.id}
+                             onClick={() => setSelectedModule(module)}
+                             className={`w-full text-left p-3 hover:bg-accent transition-colors text-sm ${
+                               selectedModule?.id === module.id ? 'bg-accent' : ''
+                             }`}
+                           >
+                             <div className="flex items-start justify-between gap-2">
+                               <span className="font-medium line-clamp-2">{module.title}</span>
+                               <div className="flex-shrink-0">
+                                 {module.completed ? (
+                                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                     Completed
+                                   </Badge>
+                                 ) : (
+                                   <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                                     Pending
+                                   </Badge>
+                                 )}
+                               </div>
+                             </div>
+                           </button>
+                         ))}
+                       </div>
+                     )}
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardHeader>
                     <CardTitle>Course Modules</CardTitle>
@@ -519,7 +655,7 @@ export function CourseViewer({ course, onBack }: CourseViewerProps) {
                                   {module.duration}
                                 </div>
                               )}
-                              {module.progress_percentage > 0 && module.progress_percentage < 100 && (
+                              {module.progress_percentage !== undefined && module.progress_percentage > 0 && module.progress_percentage < 100 && (
                                 <div className="mt-1">
                                   <Progress value={module.progress_percentage} className="h-1" />
                                   <span className="text-xs text-muted-foreground">

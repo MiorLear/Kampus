@@ -20,7 +20,7 @@ import {
 } from '../ui/select';
 import { Search, Filter, Download, RefreshCw, Activity, User, Clock } from 'lucide-react';
 import { ActivityLog, User as UserType } from '../../services/firestore.service';
-import { FirestoreService } from '../../services/firestore.service';
+import { ApiService } from '../../services/api.service';
 import { toast } from 'sonner';
 import { formatDate } from '../../utils/firebase-helpers';
 

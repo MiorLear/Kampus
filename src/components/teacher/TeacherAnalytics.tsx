@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Progress } from '../ui/progress';
 import { Badge } from '../ui/badge';
@@ -17,57 +17,110 @@ import {
   Cell
 } from 'recharts';
 import { TrendingUp, Users, Award, Clock } from 'lucide-react';
+import { formatDate } from '../../utils/firebase-helpers';
 
 interface Course {
   id: string;
   title: string;
-  enrolledStudents: number;
-  completionRate: number;
-  status: string;
+  description?: string;
+  status?: string;
+  created_at?: any;
 }
 
 interface TeacherAnalyticsProps {
   courses: Course[];
+  enrollments: any[];
+  assignments: any[];
+  submissions: any[];
 }
 
-const mockAnalyticsData = {
-  monthlyProgress: [
-    { month: 'Jan', completions: 12, enrollments: 25 },
-    { month: 'Feb', completions: 19, enrollments: 30 },
-    { month: 'Mar', completions: 15, enrollments: 22 },
-    { month: 'Apr', completions: 28, enrollments: 35 },
-    { month: 'May', completions: 22, enrollments: 28 },
-    { month: 'Jun', completions: 31, enrollments: 40 }
-  ],
-  gradeDistribution: [
-    { range: '90-100%', count: 15, color: '#22c55e' },
-    { range: '80-89%', count: 22, color: '#3b82f6' },
-    { range: '70-79%', count: 18, color: '#f59e0b' },
-    { range: '60-69%', count: 8, color: '#ef4444' },
-    { range: '<60%', count: 3, color: '#6b7280' }
-  ],
-  studentEngagement: [
-    { week: 'Week 1', activeStudents: 45, assignments: 38 },
-    { week: 'Week 2', activeStudents: 42, assignments: 35 },
-    { week: 'Week 3', activeStudents: 48, assignments: 40 },
-    { week: 'Week 4', activeStudents: 44, assignments: 37 }
-  ]
-};
+export function TeacherAnalytics({ courses, enrollments, assignments, submissions }: TeacherAnalyticsProps) {
+  // Calculate stats
+  const stats = useMemo(() => {
+    // Total Students (Unique)
+    const uniqueStudents = new Set(enrollments.map(e => e.student_id)).size;
+    
+    // Enrollments by course
+    const enrollmentsByCourse = courses.map(course => {
+      const courseEnrollments = enrollments.filter(e => e.course_id === course.id);
+      const courseAssignments = assignments.filter(a => a.course_id === course.id);
+      const assignmentIds = new Set(courseAssignments.map(a => a.id));
+      const courseSubmissions = submissions.filter(s => assignmentIds.has(s.assignment_id));
+      
+      // Calculate completion (avg progress of enrollments)
+      const avgProgress = courseEnrollments.length > 0
+        ? courseEnrollments.reduce((sum, e) => sum + (e.progress || 0), 0) / courseEnrollments.length
+        : 0;
 
-export function TeacherAnalytics({ courses }: TeacherAnalyticsProps) {
-  const totalStudents = courses.reduce((sum, course) => sum + course.enrolledStudents, 0);
-  const avgCompletionRate = courses.length > 0 
-    ? courses.reduce((sum, course) => sum + course.completionRate, 0) / courses.length 
-    : 0;
-  const publishedCourses = courses.filter(c => c.status === 'published').length;
+      return {
+        ...course,
+        enrolledStudents: courseEnrollments.length,
+        completionRate: Math.round(avgProgress),
+        submissionCount: courseSubmissions.length
+      };
+    });
+
+    const avgCompletion = enrollmentsByCourse.length > 0
+      ? enrollmentsByCourse.reduce((acc, c) => acc + c.completionRate, 0) / enrollmentsByCourse.length
+      : 0;
+
+    // Monthly Progress (Enrollments creation date) - Mock simulation based on dates if available
+    // Since we don't have 'created_at' in enrollments typings shown reliably, we might default or try to parse
+    // For now let's group by month if created_at exists, else distribute roughly
+    // Actual implementation: Group enrollments by month
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyDataMap = new Map<string, { enrollments: number, submissions: number }>();
+    
+    enrollments.forEach(e => {
+      if (e.enrolled_at) {
+        const d = new Date(e.enrolled_at);  // Assuming enrolled_at exists
+        const key = months[d.getMonth()];
+        const current = monthlyDataMap.get(key) || { enrollments: 0, submissions: 0 };
+        current.enrollments++;
+        monthlyDataMap.set(key, current);
+      }
+    });
+
+    submissions.forEach(s => {
+      if (s.submitted_at) {
+        const d = new Date(s.submitted_at);
+        const key = months[d.getMonth()];
+        const current = monthlyDataMap.get(key) || { enrollments: 0, submissions: 0 };
+        current.submissions++;
+        monthlyDataMap.set(key, current);
+      }
+    });
+
+    // If no date data, show empty or minimal
+    const monthlyProgress = months.map(m => ({
+      month: m,
+      enrollments: monthlyDataMap.get(m)?.enrollments || 0,
+      completions: monthlyDataMap.get(m)?.submissions || 0 // Proxy completions with submissions for now
+    })).filter(d => d.enrollments > 0 || d.completions > 0);
+
+    // Grade Distribution
+    const grades = submissions
+      .filter(s => s.grade !== undefined && s.grade !== null)
+      .map(s => Number(s.grade));
+    
+    const gradeDistribution = [
+      { range: '90-100%', count: grades.filter(g => g >= 90).length, color: '#22c55e' },
+      { range: '80-89%', count: grades.filter(g => g >= 80 && g < 90).length, color: '#3b82f6' },
+      { range: '70-79%', count: grades.filter(g => g >= 70 && g < 80).length, color: '#f59e0b' },
+      { range: '<70%', count: grades.filter(g => g < 70).length, color: '#ef4444' }
+    ].filter(d => d.count > 0);
+
+    return {
+      totalStudents: uniqueStudents,
+      avgCompletion,
+      enrollmentsByCourse,
+      monthlyProgress: monthlyProgress.length ? monthlyProgress : [{ month: 'No Data', enrollments: 0, completions: 0 }],
+      gradeDistribution: gradeDistribution.length ? gradeDistribution : [{ range: 'No Grades', count: 1, color: '#e5e7eb' }]
+    };
+  }, [courses, enrollments, assignments, submissions]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2>Analytics Overview</h2>
-        <p className="text-muted-foreground">Insights into your teaching performance</p>
-      </div>
-
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
@@ -75,8 +128,8 @@ export function TeacherAnalytics({ courses }: TeacherAnalyticsProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Students</p>
-                <p className="text-2xl font-bold">{totalStudents}</p>
-                <p className="text-xs text-green-600">+12% from last month</p>
+                <p className="text-2xl font-bold">{stats.totalStudents}</p>
+                <p className="text-xs text-muted-foreground">Unique students</p>
               </div>
               <Users className="h-8 w-8 text-blue-600" />
             </div>
@@ -88,8 +141,8 @@ export function TeacherAnalytics({ courses }: TeacherAnalyticsProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Avg Completion</p>
-                <p className="text-2xl font-bold">{Math.round(avgCompletionRate)}%</p>
-                <p className="text-xs text-green-600">+5% from last month</p>
+                <p className="text-2xl font-bold">{Math.round(stats.avgCompletion)}%</p>
+                <p className="text-xs text-muted-foreground">Across all courses</p>
               </div>
               <Award className="h-8 w-8 text-green-600" />
             </div>
@@ -100,9 +153,8 @@ export function TeacherAnalytics({ courses }: TeacherAnalyticsProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Active Courses</p>
-                <p className="text-2xl font-bold">{publishedCourses}</p>
-                <p className="text-xs text-blue-600">All published</p>
+                <p className="text-sm text-muted-foreground">Total Courses</p>
+                <p className="text-2xl font-bold">{courses.length}</p>
               </div>
               <TrendingUp className="h-8 w-8 text-orange-600" />
             </div>
@@ -113,9 +165,8 @@ export function TeacherAnalytics({ courses }: TeacherAnalyticsProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Avg Study Time</p>
-                <p className="text-2xl font-bold">2.5h</p>
-                <p className="text-xs text-muted-foreground">Per week</p>
+                <p className="text-sm text-muted-foreground">Assignments</p>
+                <p className="text-2xl font-bold">{assignments.length}</p>
               </div>
               <Clock className="h-8 w-8 text-purple-600" />
             </div>
@@ -130,29 +181,29 @@ export function TeacherAnalytics({ courses }: TeacherAnalyticsProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {courses.map(course => (
+            {stats.enrollmentsByCourse.map(course => (
               <div key={course.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="font-medium">{course.title}</h3>
-                    <Badge variant={course.status === 'published' ? 'default' : 'secondary'}>
-                      {course.status}
-                    </Badge>
                   </div>
                   <div className="flex items-center gap-6 text-sm text-muted-foreground">
                     <span>{course.enrolledStudents} students</span>
-                    <span>{course.completionRate}% completion</span>
+                    <span>{course.submissionCount} submissions</span>
                   </div>
                 </div>
                 <div className="w-32">
                   <div className="flex items-center justify-between text-sm mb-1">
-                    <span>Progress</span>
+                    <span>Avg Progress</span>
                     <span>{course.completionRate}%</span>
                   </div>
                   <Progress value={course.completionRate} />
                 </div>
               </div>
             ))}
+            {stats.enrollmentsByCourse.length === 0 && (
+              <p className="text-center text-muted-foreground py-4">No courses available.</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -161,17 +212,17 @@ export function TeacherAnalytics({ courses }: TeacherAnalyticsProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Monthly Progress</CardTitle>
+            <CardTitle>Enrollments/Activity Trend</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={mockAnalyticsData.monthlyProgress}>
+              <BarChart data={stats.monthlyProgress}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="enrollments" fill="#3b82f6" name="Enrollments" />
-                <Bar dataKey="completions" fill="#22c55e" name="Completions" />
+                <Bar dataKey="enrollments" fill="#3b82f6" name="New Enrollments" />
+                <Bar dataKey="completions" fill="#22c55e" name="Submissions" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -185,101 +236,20 @@ export function TeacherAnalytics({ courses }: TeacherAnalyticsProps) {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={mockAnalyticsData.gradeDistribution}
+                  data={stats.gradeDistribution}
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
                   dataKey="count"
                   label={({ range, count }) => `${range}: ${count}`}
                 >
-                  {mockAnalyticsData.gradeDistribution.map((entry, index) => (
+                  {stats.gradeDistribution.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Student Engagement Trends</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={mockAnalyticsData.studentEngagement}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" />
-                <YAxis />
-                <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="activeStudents" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                  name="Active Students"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="assignments" 
-                  stroke="#22c55e" 
-                  strokeWidth={2}
-                  name="Completed Assignments"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detailed Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Performing Students</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { name: 'Sarah Wilson', grade: 95, course: 'Web Development' },
-                { name: 'Jane Smith', grade: 92, course: 'React Patterns' },
-                { name: 'John Doe', grade: 85, course: 'Web Development' },
-                { name: 'Mike Johnson', grade: 83, course: 'React Patterns' }
-              ].map((student, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{student.name}</p>
-                    <p className="text-sm text-muted-foreground">{student.course}</p>
-                  </div>
-                  <Badge variant="default">{student.grade}%</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { action: 'Quiz completed', student: 'John Doe', time: '2 hours ago' },
-                { action: 'Assignment submitted', student: 'Jane Smith', time: '4 hours ago' },
-                { action: 'New enrollment', student: 'Mike Johnson', time: '1 day ago' },
-                { action: 'Course completed', student: 'Sarah Wilson', time: '2 days ago' }
-              ].map((activity, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{activity.action}</p>
-                    <p className="text-sm text-muted-foreground">{activity.student}</p>
-                  </div>
-                  <span className="text-sm text-muted-foreground">{activity.time}</span>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
       </div>

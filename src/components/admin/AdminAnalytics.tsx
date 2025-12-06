@@ -38,25 +38,39 @@ export function AdminAnalytics({ users, courses }: AdminAnalyticsProps) {
     try {
       setLoading(true);
 
-      // Load course enrollment data
-      const courseEnrollments = await Promise.all(
-        courses.slice(0, 10).map(async (course) => {
-          if (!course || !course.id || !course.title) return null;
-          const enrollments = await ApiService.getEnrollmentsByCourse(course.id);
+      // Optimized: Load all enrollments in a single call instead of N calls
+      const topCourses = courses.slice(0, 10);
+      const [allEnrollments] = await Promise.all([
+        ApiService.getAllEnrollments(),
+      ]);
+
+      // Group enrollments by course_id
+      const enrollmentsByCourse: Record<string, any[]> = {};
+      allEnrollments.forEach((enrollment: any) => {
+        const courseId = enrollment.course_id;
+        if (!enrollmentsByCourse[courseId]) {
+          enrollmentsByCourse[courseId] = [];
+        }
+        enrollmentsByCourse[courseId].push(enrollment);
+      });
+
+      // Process course enrollment data
+      const courseEnrollments = topCourses
+        .filter(course => course && course.id && course.title)
+        .map((course) => {
+          const enrollments = enrollmentsByCourse[course.id] || [];
           return {
-            name: course.title.length > 20 ? course.title.substring(0, 20) + '...' : course.title,
+            name: course.title.length > 20 
+              ? course.title.substring(0, 20) + '...' 
+              : course.title,
             students: enrollments.length,
             avgProgress: enrollments.length > 0
-              ? enrollments.reduce((sum, e) => sum + e.progress, 0) / enrollments.length
+              ? enrollments.reduce((sum: number, e: any) => sum + (e.progress || 0), 0) / enrollments.length
               : 0,
           };
-        })
-      );
-      
-      // Filter out null values
-      const validCourseEnrollments = courseEnrollments.filter(c => c !== null);
+        });
 
-      setCourseData(validCourseEnrollments);
+      setCourseData(courseEnrollments);
 
       // Prepare user distribution data
       const roleData = [

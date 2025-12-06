@@ -315,7 +315,7 @@ export function AdminDashboard({ user, defaultTab }: AdminDashboardProps) {
         </TabsContent>
 
         <TabsContent value="users">
-          <UserManagement users={users} />
+          <UserManagement users={users} onUserUpdate={refreshUsers} />
         </TabsContent>
 
         <TabsContent value="courses">

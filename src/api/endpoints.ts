@@ -8,6 +8,14 @@ export const API_ENDPOINTS = {
   USERS: '/users',
   USER_BY_ID: (id: string) => `/users/${id}`,
   USER_STATS: '/users/stats',
+  USER_PROFILE_CREATE: (userId: string) => `/users/${userId}/profile`,
+  USER_PROFILE_STUDENT: (userId: string) => `/users/${userId}/profile/student`,
+  USER_PROFILE_TEACHER: (userId: string) => `/users/${userId}/profile/teacher`,
+  USER_PROFILE_ADMIN: (userId: string) => `/users/${userId}/profile/admin`,
+  USER_STATS_STUDENT: (userId: string) => `/users/${userId}/stats/student`,
+  USER_STATS_TEACHER: (userId: string) => `/users/${userId}/stats/teacher`,
+  USER_STATS_ADMIN: (userId: string) => `/users/${userId}/stats/admin`,
+  USER_PERMISSIONS: (userId: string) => `/users/${userId}/permissions`,
   
   // Courses
   COURSES: '/courses',

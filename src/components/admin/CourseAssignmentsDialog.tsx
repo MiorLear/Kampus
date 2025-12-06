@@ -144,7 +144,9 @@ export function CourseAssignmentsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="!max-w-[95vw] sm:!max-w-6xl max-h-[95vh] overflow-y-auto w-[95vw] sm:w-auto">
+        <DialogContent 
+          className="max-h-[90vh] max-w-4xl w-[90vw] overflow-y-auto"
+        >
           <DialogHeader>
             <DialogTitle>Manage Assignments - {course.title}</DialogTitle>
             <DialogDescription>
@@ -152,7 +154,7 @@ export function CourseAssignmentsDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto max-h-[calc(90vh-180px)] pr-2">
             <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center justify-between">
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -256,7 +258,7 @@ export function CourseAssignmentsDialog({
 
       {/* Assignment Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90vh] max-w-4xl w-[90vw] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedAssignment?.title}</DialogTitle>
             <DialogDescription>Assignment details</DialogDescription>
@@ -303,6 +305,8 @@ export function CourseAssignmentsDialog({
         assignment={editingAssignment}
         courses={course ? [course] : []}
         onSave={handleEditorSave}
+        dialogClassName="max-h-[90vh] !w-[70vw] !max-w-[70vw] sm:!max-w-[70vw] overflow-y-auto"
+        dialogStyle={{ maxWidth: '70vw', width: '70vw' }}
       />
 
       {/* Delete Confirmation Dialog */}
